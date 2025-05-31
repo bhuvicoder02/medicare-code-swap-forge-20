@@ -1,4 +1,3 @@
-
 const mongoose = require('mongoose');
 const User = require('./models/User');
 const Hospital = require('./models/Hospital');
@@ -96,10 +95,14 @@ const seedDatabase = async () => {
 
     // Insert transactions with proper user references
     const transactionData = transactions.map(transaction => {
-      if (transaction.userEmail && userMap[transaction.userEmail]) {
+      if (!userMap[transaction.userEmail]) {
+        // If user email doesn't exist in map, use a default user
+        const defaultUser = createdUsers.find(user => user.role === 'patient') || createdUsers[0];
+        transaction.user = defaultUser._id;
+      } else {
         transaction.user = userMap[transaction.userEmail];
-        delete transaction.userEmail;
       }
+      delete transaction.userEmail;
       return transaction;
     });
     
@@ -108,10 +111,16 @@ const seedDatabase = async () => {
 
     // Insert notifications with proper user references
     const notificationData = notifications.map(notification => {
-      if (notification.userEmail && userMap[notification.userEmail]) {
+      // If user email doesn't exist in map or isn't provided, use a default user
+      if (!notification.userEmail || !userMap[notification.userEmail]) {
+        const defaultUser = createdUsers.find(user => user.role === 'patient') || createdUsers[0];
+        notification.user = defaultUser._id;
+      } else {
         notification.user = userMap[notification.userEmail];
-        delete notification.userEmail;
       }
+      
+      // Clean up the userEmail field
+      delete notification.userEmail;
       return notification;
     });
     
