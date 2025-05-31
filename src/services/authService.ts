@@ -81,9 +81,9 @@ export const getCurrentUser = async (): Promise<AuthUser | null> => {
     
     console.log('User data received:', data);
     
-    if (data && data.id) {
+    if (data && data._id) {
       return {
-        id: data.id,
+        id: data._id,
         email: data.email,
         role: data.role,
         firstName: data.firstName,
@@ -106,6 +106,7 @@ export const logoutUser = () => {
   localStorage.removeItem('token');
   localStorage.removeItem('auth_token');
 };
+
 export const checkAuthToken = (): boolean => {
   const token = localStorage.getItem('token');
   return !!token;

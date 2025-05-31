@@ -17,7 +17,7 @@ const AuthContext = createContext<{
     error: any | null;
     data: any | null;
   }>;
-  signUp: (email: string, password: string, firstName: string, lastName: string, role?: UserRole) => Promise<{
+  signUp: (email: string, password: string, firstName: string, lastName: string, phone: string, role?: UserRole) => Promise<{
     error: any | null;
     data: any | null;
   }>;
@@ -122,14 +122,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const signUp = async (email: string, password: string, firstName: string, lastName: string, role: UserRole = 'patient') => {
+  const signUp = async (email: string, password: string, firstName: string, lastName: string, phone: string, role: UserRole = 'patient') => {
     if (password.length < 6) {
       return { data: null, error: { message: "Password must be at least 6 characters long" } };
     }
     
     try {
-      console.log('Registering new user:', { email, firstName, lastName, role });
-      const { user, error } = await registerUser(email, password, firstName, lastName, role);
+      console.log('Registering new user:', { email, firstName, lastName, phone, role });
+      const { user, error } = await registerUser(email, password, firstName, lastName, phone, role);
       
       if (error) {
         console.error('Registration error:', error);
