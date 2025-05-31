@@ -36,9 +36,10 @@ export const registerUser = async (
   password: string, 
   firstName: string, 
   lastName: string, 
+  phone: string,
   role: UserRole = 'patient'
 ) => {
-  console.log('Registering new user:', { email, firstName, lastName, role });
+  console.log('Registering new user:', { email, firstName, lastName, phone, role });
   
   try {
     // Register request
@@ -49,6 +50,7 @@ export const registerUser = async (
         password, 
         firstName, 
         lastName, 
+        phone,
         role 
       })
     });
@@ -75,18 +77,26 @@ export const registerUser = async (
 export const getCurrentUser = async (): Promise<AuthUser | null> => {
   try {
     console.log('Fetching current user data');
-    const userData = await apiRequest('/auth');
-    console.log('User data received:', userData);
+    const data = await apiRequest('/auth');
     
-    return {
-      id: userData._id,
-      email: userData.email,
-      role: userData.role as UserRole,
-      firstName: userData.firstName,
-      lastName: userData.lastName
-    };
-  } catch (error) {
+    console.log('User data received:', data);
+    
+    if (data && data.id) {
+      return {
+        id: data.id,
+        email: data.email,
+        role: data.role,
+        firstName: data.firstName,
+        lastName: data.lastName
+      };
+    }
+    
+    return null;
+  } catch (error: any) {
     console.error('Failed to get current user:', error);
+    // Clear invalid token
+    localStorage.removeItem('token');
+    localStorage.removeItem('auth_token');
     return null;
   }
 };
@@ -95,9 +105,4 @@ export const logoutUser = () => {
   console.log('Logging out user');
   localStorage.removeItem('token');
   localStorage.removeItem('auth_token');
-};
-
-export const checkAuthToken = (): boolean => {
-  const token = localStorage.getItem('token') || localStorage.getItem('auth_token');
-  return !!token;
 };

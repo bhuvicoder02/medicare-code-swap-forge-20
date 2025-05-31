@@ -11,7 +11,8 @@ import {
   Lock,
   User,
   AlertCircle,
-  UserCheck
+  UserCheck,
+  Phone
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -26,8 +27,10 @@ const Signup = () => {
   const [formData, setFormData] = useState({
     email: '',
     password: '',
+    confirmPassword: '',
     firstName: '',
     lastName: '',
+    phone: '',
     role: 'patient' as UserRole
   });
   const [error, setError] = useState<string | null>(null);
@@ -51,7 +54,7 @@ const Signup = () => {
   };
 
   const validateForm = () => {
-    if (!formData.email || !formData.password || !formData.firstName || !formData.lastName) {
+    if (!formData.email || !formData.password || !formData.confirmPassword || !formData.firstName || !formData.lastName || !formData.phone) {
       setError('All fields are required');
       return false;
     }
@@ -63,6 +66,16 @@ const Signup = () => {
     
     if (formData.password.length < 6) {
       setError('Password must be at least 6 characters long');
+      return false;
+    }
+
+    if (formData.password !== formData.confirmPassword) {
+      setError('Passwords do not match');
+      return false;
+    }
+
+    if (!/^\d{10}$/.test(formData.phone)) {
+      setError('Please enter a valid 10-digit phone number');
       return false;
     }
     
@@ -84,6 +97,7 @@ const Signup = () => {
         formData.password,
         formData.firstName,
         formData.lastName,
+        formData.phone,
         formData.role
       );
       
@@ -192,6 +206,19 @@ const Signup = () => {
                         required
                       />
                     </div>
+
+                    <div className="relative">
+                      <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-5 w-5" />
+                      <input
+                        type="tel"
+                        name="phone"
+                        placeholder="Phone Number"
+                        value={formData.phone}
+                        onChange={handleInputChange}
+                        className="w-full pl-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-500"
+                        required
+                      />
+                    </div>
                     
                     <div className="relative">
                       <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-5 w-5" />
@@ -200,6 +227,20 @@ const Signup = () => {
                         name="password"
                         placeholder="Password"
                         value={formData.password}
+                        onChange={handleInputChange}
+                        className="w-full pl-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-500"
+                        autoComplete="new-password"
+                        required
+                      />
+                    </div>
+
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-5 w-5" />
+                      <input
+                        type="password"
+                        name="confirmPassword"
+                        placeholder="Confirm Password"
+                        value={formData.confirmPassword}
                         onChange={handleInputChange}
                         className="w-full pl-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-500"
                         autoComplete="new-password"

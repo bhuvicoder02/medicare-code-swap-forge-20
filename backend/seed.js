@@ -49,7 +49,6 @@ const seedDatabase = async () => {
 
     // Insert hospitals and assign users
     const hospitalData = hospitals.map((hospital, index) => {
-      // Map each hospital to its corresponding user by email
       let userEmail;
       
       if (hospital.name === "City General Hospital") {
@@ -59,31 +58,21 @@ const seedDatabase = async () => {
       } else if (hospital.name === "LifeCare Medical Center") {
         userEmail = "anand@lifecaremedical.com";
       } else {
-        // Fallback to a default hospital user
         userEmail = "hospital@demo.com";
       }
       
-      // Assign the hospital to the corresponding user
       return {
         ...hospital,
-        user: userMap[userEmail]
+        user: userMap[userEmail] || userMap["hospital@demo.com"]
       };
     });
     
     const createdHospitals = await Hospital.insertMany(hospitalData);
     console.log(`Inserted ${createdHospitals.length} hospitals`);
 
-    // Create hospital ID to record mapping for referencing
-    const hospitalMap = {};
-    createdHospitals.forEach(hospital => {
-      hospitalMap[hospital.name] = hospital._id;
-    });
-
-    // Assign a default user to health cards if not specified
-    // This fixes the validation error by ensuring all health cards have a user
+    // Insert health cards
     const healthCardData = healthCards.map(card => {
       if (!card.user) {
-        // Find the first patient user to associate with the health card
         const patientUser = createdUsers.find(user => user.role === 'patient');
         card.user = patientUser ? patientUser._id : createdUsers[0]._id;
       }
@@ -130,6 +119,9 @@ const seedDatabase = async () => {
     console.log(`Inserted ${createdNotifications.length} notifications`);
 
     console.log('Database seeding completed successfully');
+    console.log('Sample patient credentials for testing:');
+    console.log('Email: patient@demo.com, Password: password123');
+    console.log('Email: testpatient@demo.com, Password: password123');
     
   } catch (err) {
     console.error('Error seeding database:', err);
