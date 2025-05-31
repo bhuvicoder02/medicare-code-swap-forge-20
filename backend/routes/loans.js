@@ -3,96 +3,243 @@ const express = require('express');
 const router = express.Router();
 const { check, validationResult } = require('express-validator');
 const auth = require('../middleware/auth');
-
 const Loan = require('../models/Loan');
+const User = require('../models/User');
+
+// Credit score criteria for loan eligibility
+const getCreditScoreCriteria = (creditScore) => {
+  if (creditScore >= 750) {
+    return { maxAmount: 500000, interestRate: 10.5 };
+  } else if (creditScore >= 700) {
+    return { maxAmount: 300000, interestRate: 12.0 };
+  } else if (creditScore >= 650) {
+    return { maxAmount: 150000, interestRate: 14.0 };
+  } else if (creditScore >= 600) {
+    return { maxAmount: 75000, interestRate: 16.0 };
+  } else {
+    return { maxAmount: 0, interestRate: 0 };
+  }
+};
 
 // @route   GET api/loans
-// @desc    Get all loans for a user
+// @desc    Get all loans for a user or all loans for admin
 // @access  Private
 router.get('/', auth, async (req, res) => {
   try {
-    const loans = await Loan.find({ user: req.user.id }).sort({ applicationDate: -1 });
-    res.json(loans);
+    let loans;
+    if (req.user.role === 'admin') {
+      // Admin can see all loans
+      loans = await Loan.find().populate('user', 'firstName lastName email uhid').sort({ applicationDate: -1 });
+    } else {
+      // Regular users see only their loans
+      loans = await Loan.find({ user: req.user.id }).sort({ applicationDate: -1 });
+    }
+    res.json(loans || []);
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server Error');
   }
 });
 
-// @route   POST api/loans
-// @desc    Apply for a loan
+// @route   GET api/loans/by-uhid/:uhid
+// @desc    Get loans by UHID
 // @access  Private
-router.post(
-  '/',
-  [
-    auth,
-    [
-      check('amount', 'Amount is required').not().isEmpty(),
-      check('termMonths', 'Term in months is required').not().isEmpty(),
-    ]
-  ],
-  async (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-
-    const { amount, termMonths } = req.body;
-
-    try {
-      // Calculate interest rate (simplified for demo)
-      const interestRate = 12; // 12% interest rate
-      
-      const newLoan = new Loan({
-        amount,
-        termMonths,
-        interestRate,
-        user: req.user.id,
-      });
-
-      const loan = await newLoan.save();
-
-      res.json(loan);
-    } catch (err) {
-      console.error(err.message);
-      res.status(500).send('Server Error');
-    }
+router.get('/by-uhid/:uhid', auth, async (req, res) => {
+  try {
+    const loans = await Loan.find({ uhid: req.params.uhid }).sort({ applicationDate: -1 });
+    res.json(loans || []);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
   }
-);
+});
 
-// @route   PUT api/loans/:id/approve
-// @desc    Approve a loan application (admin only)
+// @route   POST api/loans/draft
+// @desc    Create or update draft loan application
 // @access  Private
-router.put('/:id/approve', auth, async (req, res) => {
+router.post('/draft', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user || !user.uhid) {
+      return res.status(400).json({ msg: 'User must complete KYC first' });
+    }
+
+    const { step, data } = req.body;
+
+    // Find existing draft or create new one
+    let loan = await Loan.findOne({ 
+      user: req.user.id, 
+      status: 'draft' 
+    });
+
+    if (!loan) {
+      loan = new Loan({
+        user: req.user.id,
+        uhid: user.uhid,
+        currentStep: step || 1
+      });
+    }
+
+    // Update loan data based on step
+    if (step === 1 && data.personalInfo) {
+      loan.personalInfo = { ...loan.personalInfo, ...data.personalInfo };
+    } else if (step === 2 && data.creditScore) {
+      loan.creditScore = data.creditScore;
+      const criteria = getCreditScoreCriteria(data.creditScore);
+      loan.maxEligibleAmount = criteria.maxAmount;
+      loan.loanDetails = { ...loan.loanDetails, interestRate: criteria.interestRate };
+    } else if (step === 3 && data.employmentInfo) {
+      loan.employmentInfo = { ...loan.employmentInfo, ...data.employmentInfo };
+    } else if (step === 4 && data.loanDetails) {
+      loan.loanDetails = { ...loan.loanDetails, ...data.loanDetails };
+    } else if (step === 5 && data.documents) {
+      loan.documents = { ...loan.documents, ...data.documents };
+    }
+
+    loan.currentStep = Math.max(loan.currentStep, step || 1);
+    await loan.save();
+
+    res.json(loan);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
+// @route   POST api/loans/submit
+// @desc    Submit complete loan application
+// @access  Private
+router.post('/submit', auth, async (req, res) => {
+  try {
+    const {
+      personalInfo,
+      employmentInfo,
+      medicalInfo,
+      financialInfo,
+      loanDetails,
+      documents,
+      verification,
+      transactionId,
+      agreementSigned,
+      nachMandateSigned,
+      termsAccepted
+    } = req.body;
+
+    const user = await User.findById(req.user.id);
+    if (!user || !user.uhid) {
+      return res.status(400).json({ msg: 'User must complete KYC first' });
+    }
+
+    // Find existing draft or create new loan
+    let loan = await Loan.findOne({ 
+      user: req.user.id, 
+      status: 'draft' 
+    });
+
+    if (!loan) {
+      loan = new Loan({
+        user: req.user.id,
+        uhid: user.uhid
+      });
+    }
+
+    // Update all loan data
+    loan.personalInfo = personalInfo;
+    loan.employmentInfo = employmentInfo;
+    loan.medicalInfo = medicalInfo;
+    loan.financialInfo = financialInfo;
+    loan.loanDetails = loanDetails;
+    loan.documents = documents;
+    loan.verification = verification;
+    loan.transactionId = transactionId;
+    loan.agreementSigned = agreementSigned;
+    loan.nachMandateSigned = nachMandateSigned;
+    loan.termsAccepted = termsAccepted;
+    loan.status = 'submitted';
+    loan.submissionDate = new Date();
+
+    // Calculate monthly payment if approved amount exists
+    if (loan.loanDetails.approvedAmount && loan.loanDetails.preferredTerm && loan.loanDetails.interestRate) {
+      const monthlyRate = loan.loanDetails.interestRate / 100 / 12;
+      const numPayments = loan.loanDetails.preferredTerm;
+      loan.monthlyPayment = 
+        (loan.loanDetails.approvedAmount * monthlyRate * Math.pow(1 + monthlyRate, numPayments)) / 
+        (Math.pow(1 + monthlyRate, numPayments) - 1);
+      loan.remainingBalance = loan.loanDetails.approvedAmount;
+    }
+
+    await loan.save();
+
+    res.json({
+      message: 'Loan application submitted successfully',
+      applicationNumber: loan.applicationNumber,
+      loan
+    });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
+// @route   PUT api/loans/:id/status
+// @desc    Update loan status (admin only)
+// @access  Private
+router.put('/:id/status', auth, async (req, res) => {
   try {
     if (req.user.role !== 'admin') {
-      return res.status(401).json({ msg: 'Not authorized to approve loans' });
+      return res.status(401).json({ msg: 'Not authorized' });
     }
 
-    const loan = await Loan.findById(req.params.id);
+    const { status, rejectionReason, approvedAmount, interestRate, term } = req.body;
 
+    const loan = await Loan.findById(req.params.id);
     if (!loan) {
       return res.status(404).json({ msg: 'Loan not found' });
     }
 
-    if (loan.status === 'approved') {
-      return res.status(400).json({ msg: 'Loan already approved' });
+    loan.status = status;
+    
+    if (status === 'approved') {
+      loan.approvalDate = new Date();
+      if (approvedAmount) loan.loanDetails.approvedAmount = approvedAmount;
+      if (interestRate) loan.loanDetails.interestRate = interestRate;
+      if (term) loan.loanDetails.preferredTerm = term;
+      
+      // Calculate monthly payment
+      const monthlyRate = loan.loanDetails.interestRate / 100 / 12;
+      const numPayments = loan.loanDetails.preferredTerm;
+      loan.monthlyPayment = 
+        (loan.loanDetails.approvedAmount * monthlyRate * Math.pow(1 + monthlyRate, numPayments)) / 
+        (Math.pow(1 + monthlyRate, numPayments) - 1);
+      loan.remainingBalance = loan.loanDetails.approvedAmount;
+    } else if (status === 'rejected') {
+      loan.rejectionReason = rejectionReason;
     }
 
-    // Calculate monthly payment
-    const monthlyInterestRate = loan.interestRate / 100 / 12;
-    const monthlyPayment = 
-      (loan.amount * monthlyInterestRate * Math.pow(1 + monthlyInterestRate, loan.termMonths)) / 
-      (Math.pow(1 + monthlyInterestRate, loan.termMonths) - 1);
-
-    loan.status = 'approved';
-    loan.approvalDate = Date.now();
-    loan.monthlyPayment = monthlyPayment;
-    loan.remainingBalance = loan.amount;
-
     await loan.save();
-
     res.json(loan);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
+// @route   GET api/loans/credit-score/:panNumber
+// @desc    Get credit score by PAN number (mock)
+// @access  Private
+router.get('/credit-score/:panNumber', auth, async (req, res) => {
+  try {
+    // Mock credit score based on PAN number
+    const panNumber = req.params.panNumber;
+    const mockScore = 650 + Math.floor(Math.random() * 150); // Random score between 650-800
+    
+    const criteria = getCreditScoreCriteria(mockScore);
+    
+    res.json({
+      creditScore: mockScore,
+      maxEligibleAmount: criteria.maxAmount,
+      interestRate: criteria.interestRate
+    });
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server Error');

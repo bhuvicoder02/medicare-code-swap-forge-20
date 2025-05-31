@@ -135,6 +135,7 @@ setupRoute('/api/users', require('./routes/users'));
 setupRoute('/api/hospitals', require('./routes/hospitals'));
 setupRoute('/api/health-cards', require('./routes/healthCards'));
 setupRoute('/api/loans', require('./routes/loans'));
+setupRoute('/api/kyc', require('./routes/kyc'));
 setupRoute('/api/transactions', require('./routes/transactions'));
 setupRoute('/api/notifications', require('./routes/notifications'));
 

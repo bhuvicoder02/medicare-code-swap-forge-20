@@ -4,13 +4,29 @@
     "firstName": "Patient",
     "lastName": "User",
     "email": "patient@demo.com",
+    "phone": "9876543210",
     "password": "$2a$10$xr.c8e3M9zQHKqX67.DIW.ZARkq.dUWOKMPgPVkj1eBZ1LC.2VSGS",
-    "role": "patient"
+    "role": "patient",
+    "uhid": "UH12345001",
+    "kycStatus": "completed",
+    "kycData": {
+      "panNumber": "ABCDE1234F",
+      "aadhaarNumber": "123456789012",
+      "dateOfBirth": "1990-01-15",
+      "gender": "male",
+      "address": "123 Main Street",
+      "city": "Mumbai",
+      "state": "Maharashtra",
+      "zipCode": "400001",
+      "maritalStatus": "single",
+      "dependents": "0"
+    }
   },
   {
     "firstName": "Hospital",
     "lastName": "Admin",
     "email": "hospital@demo.com",
+    "phone": "9876543211",
     "password": "$2a$10$xr.c8e3M9zQHKqX67.DIW.ZARkq.dUWOKMPgPVkj1eBZ1LC.2VSGS",
     "role": "hospital"
   },
@@ -18,6 +34,7 @@
     "firstName": "System",
     "lastName": "Admin",
     "email": "admin@demo.com",
+    "phone": "9876543212",
     "password": "$2a$10$xr.c8e3M9zQHKqX67.DIW.ZARkq.dUWOKMPgPVkj1eBZ1LC.2VSGS",
     "role": "admin"
   },
@@ -25,6 +42,7 @@
     "firstName": "Sales",
     "lastName": "Manager",
     "email": "sales@demo.com",
+    "phone": "9876543213",
     "password": "$2a$10$xr.c8e3M9zQHKqX67.DIW.ZARkq.dUWOKMPgPVkj1eBZ1LC.2VSGS",
     "role": "sales"
   },
@@ -32,28 +50,30 @@
     "firstName": "CRM",
     "lastName": "Manager",
     "email": "crm@demo.com",
+    "phone": "9876543214",
     "password": "$2a$10$xr.c8e3M9zQHKqX67.DIW.ZARkq.dUWOKMPgPVkj1eBZ1LC.2VSGS",
     "role": "crm"
   },
   {
-    "firstName": "Rajesh",
-    "lastName": "Sharma",
-    "email": "rajesh@cityhospital.com",
+    "firstName": "Test",
+    "lastName": "Patient",
+    "email": "testpatient@demo.com",
+    "phone": "9876543215",
     "password": "$2a$10$xr.c8e3M9zQHKqX67.DIW.ZARkq.dUWOKMPgPVkj1eBZ1LC.2VSGS",
-    "role": "hospital"
-  },
-  {
-    "firstName": "Priya",
-    "lastName": "Patel",
-    "email": "priya@wellnesshospital.com",
-    "password": "$2a$10$xr.c8e3M9zQHKqX67.DIW.ZARkq.dUWOKMPgPVkj1eBZ1LC.2VSGS",
-    "role": "hospital"
-  },
-  {
-    "firstName": "Anand",
-    "lastName": "Reddy",
-    "email": "anand@lifecaremedical.com",
-    "password": "$2a$10$xr.c8e3M9zQHKqX67.DIW.ZARkq.dUWOKMPgPVkj1eBZ1LC.2VSGS",
-    "role": "hospital"
+    "role": "patient",
+    "uhid": "UH12345002",
+    "kycStatus": "completed",
+    "kycData": {
+      "panNumber": "FGHIJ5678K",
+      "aadhaarNumber": "987654321098",
+      "dateOfBirth": "1985-05-20",
+      "gender": "female",
+      "address": "456 Park Avenue",
+      "city": "Delhi",
+      "state": "Delhi",
+      "zipCode": "110001",
+      "maritalStatus": "married",
+      "dependents": "2"
+    }
   }
 ]
