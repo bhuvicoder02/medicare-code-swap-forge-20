@@ -5,7 +5,7 @@
     "lastName": "User",
     "email": "patient@demo.com",
     "phone": "9876543210",
-    "password": "$2a$10$xr.c8e3M9zQHKqX67.DIW.ZARkq.dUWOKMPgPVkj1eBZ1LC.2VSGS",
+    "password": "$2y$10$0nLr0quY1wdBpgStqmLfI.mTamtaJcAb3tK91qCE2Q12mUZC62tpq",
     "role": "patient",
     "uhid": "UH12345001",
     "kycStatus": "completed",
@@ -27,7 +27,7 @@
     "lastName": "Admin",
     "email": "hospital@demo.com",
     "phone": "9876543211",
-    "password": "$2a$10$xr.c8e3M9zQHKqX67.DIW.ZARkq.dUWOKMPgPVkj1eBZ1LC.2VSGS",
+    "password": "$2y$10$0nLr0quY1wdBpgStqmLfI.mTamtaJcAb3tK91qCE2Q12mUZC62tpq",
     "role": "hospital"
   },
   {
@@ -35,7 +35,7 @@
     "lastName": "Admin",
     "email": "admin@demo.com",
     "phone": "9876543212",
-    "password": "$2a$10$xr.c8e3M9zQHKqX67.DIW.ZARkq.dUWOKMPgPVkj1eBZ1LC.2VSGS",
+    "password": "$2y$10$0nLr0quY1wdBpgStqmLfI.mTamtaJcAb3tK91qCE2Q12mUZC62tpq",
     "role": "admin"
   },
   {
@@ -43,7 +43,7 @@
     "lastName": "Manager",
     "email": "sales@demo.com",
     "phone": "9876543213",
-    "password": "$2a$10$xr.c8e3M9zQHKqX67.DIW.ZARkq.dUWOKMPgPVkj1eBZ1LC.2VSGS",
+    "password": "$2y$10$0nLr0quY1wdBpgStqmLfI.mTamtaJcAb3tK91qCE2Q12mUZC62tpq",
     "role": "sales"
   },
   {
@@ -51,7 +51,7 @@
     "lastName": "Manager",
     "email": "crm@demo.com",
     "phone": "9876543214",
-    "password": "$2a$10$xr.c8e3M9zQHKqX67.DIW.ZARkq.dUWOKMPgPVkj1eBZ1LC.2VSGS",
+    "password": "$2y$10$0nLr0quY1wdBpgStqmLfI.mTamtaJcAb3tK91qCE2Q12mUZC62tpq",
     "role": "crm"
   },
   {
@@ -59,7 +59,7 @@
     "lastName": "Patient",
     "email": "testpatient@demo.com",
     "phone": "9876543215",
-    "password": "$2a$10$xr.c8e3M9zQHKqX67.DIW.ZARkq.dUWOKMPgPVkj1eBZ1LC.2VSGS",
+    "password": "$2y$10$0nLr0quY1wdBpgStqmLfI.mTamtaJcAb3tK91qCE2Q12mUZC62tpq",
     "role": "patient",
     "uhid": "UH12345002",
     "kycStatus": "completed",

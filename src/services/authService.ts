@@ -106,3 +106,7 @@ export const logoutUser = () => {
   localStorage.removeItem('token');
   localStorage.removeItem('auth_token');
 };
+export const checkAuthToken = (): boolean => {
+  const token = localStorage.getItem('token');
+  return !!token;
+};
