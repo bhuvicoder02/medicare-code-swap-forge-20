@@ -8,7 +8,7 @@ import { fetchPatientAppointments, cancelAppointment } from "@/services/appointm
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import BookAppointmentDialog from "./BookAppointmentDialogue"; // Import the new dialog component
+import BookAppointmentDialog from "./BookAppointmentDialogue";
 import { Appointment } from "@/types/app.types";
 
 const AppointmentManagement = () => {
@@ -19,7 +19,29 @@ const AppointmentManagement = () => {
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
-  const [bookDialogOpen, setBookDialogOpen] = useState(false); // State for book dialog
+  const [bookDialogOpen, setBookDialogOpen] = useState(false);
+
+  // Mock hospitals data - in a real app, this would come from an API
+  const mockHospitals = [
+    {
+      _id: "hospital1",
+      name: "City General Hospital",
+      address: "123 Main Street, Downtown",
+      departments: ["Cardiology", "Neurology", "Orthopedics"],
+      doctors: [
+        {
+          name: "John Smith",
+          specialty: "Cardiology",
+          experience: "10 years",
+          qualifications: ["MD", "FACC"],
+          availability: ["Monday", "Wednesday", "Friday"]
+        }
+      ],
+      facilities: ["Emergency", "ICU", "Surgery"],
+      emergencyContact: "+1-555-0123",
+      rating: 4.5
+    }
+  ];
 
   useEffect(() => {
     const loadAppointments = async () => {
@@ -47,11 +69,14 @@ const AppointmentManagement = () => {
   }, [authState.user, toast]);
 
   const handleBookAppointment = () => {
-    setBookDialogOpen(true); // Open the dialog
+    setBookDialogOpen(true);
   };
 
-  const handleAppointmentBooked = (newAppointment: Appointment) => {
-    setAppointments((prev) => [...prev, newAppointment]); // Add new appointment to list
+  const handleAppointmentSuccess = () => {
+    // Reload appointments after successful booking
+    if (authState.user?.id) {
+      fetchPatientAppointments(authState.user.id).then(setAppointments);
+    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -224,7 +249,8 @@ const AppointmentManagement = () => {
       <BookAppointmentDialog
         open={bookDialogOpen}
         onOpenChange={setBookDialogOpen}
-        onAppointmentBooked={handleAppointmentBooked}
+        hospitals={mockHospitals}
+        onSuccess={handleAppointmentSuccess}
       />
     </div>
   );
