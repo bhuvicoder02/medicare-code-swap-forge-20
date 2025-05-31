@@ -1,25 +1,21 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Download, FileText, Calendar, Bell, Check, X, AlertCircle, Loader2 } from "lucide-react";
+import { Download, FileText, Calendar, Bell, Check, X, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { loanService, LoanApplication, EmiPayment } from "@/services/loanService";
-import { processPaymentWithFallback, PaymentMethod } from "@/services/mockPaymentService";
+import { 
+  processPaymentWithFallback, 
+  PaymentMethod 
+} from "@/services/mockPaymentService";
 
 const LoanManagement = () => {
   const { toast } = useToast();
-  
-  // State management
-  const [loans, setLoans] = useState<LoanApplication[]>([]);
-  const [selectedLoan, setSelectedLoan] = useState<LoanApplication | null>(null);
-  const [emiSchedule, setEmiSchedule] = useState<EmiPayment[]>([]);
-  const [loading, setLoading] = useState(true);
   
   // Dialog states
   const [payEmiDialogOpen, setPayEmiDialogOpen] = useState(false);
@@ -29,94 +25,82 @@ const LoanManagement = () => {
   const [prepayAmount, setPrepayAmount] = useState("");
   const [isFullPrepay, setIsFullPrepay] = useState(false);
 
-  useEffect(() => {
-    fetchLoans();
-  }, []);
-
-  const fetchLoans = async () => {
-    try {
-      setLoading(true);
-      const loansData = await loanService.getAllLoans();
-      const approvedLoans = loansData.filter(loan => loan.status === 'approved' || loan.status === 'disbursed');
-      setLoans(approvedLoans);
-      
-      if (approvedLoans.length > 0) {
-        setSelectedLoan(approvedLoans[0]);
-        fetchEmiSchedule(approvedLoans[0]._id!);
-      }
-    } catch (error) {
-      console.error('Error fetching loans:', error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to fetch loan data.",
-      });
-    } finally {
-      setLoading(false);
-    }
+  // Mock data
+  const loanDetails = {
+    loanId: "LOAN-123456",
+    totalLoanAmount: 50000,
+    remainingBalance: 35000,
+    interestRate: "12%",
+    loanTerm: "24 months",
+    emiAmount: 2500,
+    nextPaymentDue: "15/12/2023",
+    startDate: "15/01/2023",
+    endDate: "15/12/2024",
   };
 
-  const fetchEmiSchedule = async (loanId: string) => {
-    try {
-      const schedule = await loanService.getEmiSchedule(loanId);
-      setEmiSchedule(schedule);
-    } catch (error) {
-      console.error('Error fetching EMI schedule:', error);
-    }
-  };
-
-  const handleLoanSelect = (loan: LoanApplication) => {
-    setSelectedLoan(loan);
-    if (loan._id) {
-      fetchEmiSchedule(loan._id);
-    }
-  };
+  const emiHistory = [
+    { 
+      emiNumber: 11, 
+      dueDate: "15/11/2023", 
+      amount: 2500, 
+      principal: 1800, 
+      interest: 700, 
+      status: "Paid", 
+      paymentDate: "14/11/2023" 
+    },
+    { 
+      emiNumber: 10, 
+      dueDate: "15/10/2023", 
+      amount: 2500, 
+      principal: 1780, 
+      interest: 720, 
+      status: "Paid", 
+      paymentDate: "15/10/2023" 
+    },
+    { 
+      emiNumber: 9, 
+      dueDate: "15/09/2023", 
+      amount: 2500, 
+      principal: 1760, 
+      interest: 740, 
+      status: "Paid", 
+      paymentDate: "13/09/2023" 
+    },
+    { 
+      emiNumber: 8, 
+      dueDate: "15/08/2023", 
+      amount: 2500, 
+      principal: 1740, 
+      interest: 760, 
+      status: "Paid", 
+      paymentDate: "15/08/2023" 
+    },
+  ];
 
   const handlePayEMI = async () => {
-    if (!selectedLoan) return;
-
-    const nextEmi = emiSchedule.find(emi => emi.status === 'pending');
-    if (!nextEmi) {
-      toast({
-        variant: "destructive",
-        title: "No Pending EMI",
-        description: "No pending EMI found for this loan.",
-      });
-      return;
-    }
-
     setProcessingPayment(true);
     
     try {
       const paymentResult = await processPaymentWithFallback({
-        amount: nextEmi.emiAmount,
-        description: `EMI Payment for Loan ${selectedLoan.applicationNumber}`,
+        amount: loanDetails.emiAmount,
+        description: `EMI Payment for Loan ${loanDetails.loanId}`,
         paymentMethod,
         metadata: {
-          loanId: selectedLoan._id,
-          emiNumber: nextEmi.emiNumber,
-          dueDate: nextEmi.dueDate
+          loanId: loanDetails.loanId,
+          emiNumber: 12,
+          dueDate: loanDetails.nextPaymentDue
         }
       });
       
       if (paymentResult && paymentResult.success) {
-        // Update EMI payment in backend
-        await loanService.payEmi(nextEmi._id, {
-          paymentMethod,
-          transactionId: paymentResult.transactionId
-        });
-
         setPayEmiDialogOpen(false);
         toast({
           title: "EMI Payment Successful",
           description: `Transaction ID: ${paymentResult.transactionId}`,
         });
         
-        // Refresh data
-        await fetchLoans();
-        if (selectedLoan._id) {
-          await fetchEmiSchedule(selectedLoan._id);
-        }
+        // In a real app, we would update the loan state from the API
+        // For demo, we'll just show a success message
       }
     } catch (error: any) {
       toast({
@@ -130,8 +114,6 @@ const LoanManagement = () => {
   };
 
   const handlePrepayLoan = async () => {
-    if (!selectedLoan) return;
-
     if (!prepayAmount && !isFullPrepay) {
       toast({
         variant: "destructive",
@@ -141,13 +123,13 @@ const LoanManagement = () => {
       return;
     }
     
-    const amount = isFullPrepay ? (selectedLoan.emiDetails?.remainingBalance || 0) : Number(prepayAmount);
+    const amount = isFullPrepay ? loanDetails.remainingBalance : Number(prepayAmount);
     
-    if (!isFullPrepay && (amount <= 0 || amount > (selectedLoan.emiDetails?.remainingBalance || 0))) {
+    if (!isFullPrepay && (amount <= 0 || amount > loanDetails.remainingBalance)) {
       toast({
         variant: "destructive",
         title: "Invalid Amount",
-        description: `Amount must be between 1 and ${selectedLoan.emiDetails?.remainingBalance}`,
+        description: `Amount must be between 1 and ${loanDetails.remainingBalance}`,
       });
       return;
     }
@@ -158,23 +140,16 @@ const LoanManagement = () => {
       const paymentResult = await processPaymentWithFallback({
         amount,
         description: isFullPrepay 
-          ? `Full Prepayment for Loan ${selectedLoan.applicationNumber}` 
-          : `Partial Prepayment for Loan ${selectedLoan.applicationNumber}`,
+          ? `Full Prepayment for Loan ${loanDetails.loanId}` 
+          : `Partial Prepayment for Loan ${loanDetails.loanId}`,
         paymentMethod,
         metadata: {
-          loanId: selectedLoan._id,
+          loanId: loanDetails.loanId,
           prepaymentType: isFullPrepay ? 'full' : 'partial'
         }
       });
       
       if (paymentResult && paymentResult.success) {
-        // Update prepayment in backend
-        await loanService.prepayLoan(selectedLoan._id!, {
-          amount,
-          paymentMethod,
-          transactionId: paymentResult.transactionId
-        });
-
         setPrepayDialogOpen(false);
         setPrepayAmount("");
         setIsFullPrepay(false);
@@ -184,11 +159,8 @@ const LoanManagement = () => {
           description: `Transaction ID: ${paymentResult.transactionId}`,
         });
         
-        // Refresh data
-        await fetchLoans();
-        if (selectedLoan._id) {
-          await fetchEmiSchedule(selectedLoan._id);
-        }
+        // In a real app, we would update the loan state from the API
+        // For demo, we'll just show a success message
       }
     } catch (error: any) {
       toast({
@@ -215,195 +187,120 @@ const LoanManagement = () => {
     });
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin" />
-        <span className="ml-2">Loading loan data...</span>
-      </div>
-    );
-  }
-
-  if (loans.length === 0) {
-    return (
-      <Card>
-        <CardContent className="pt-6">
-          <div className="text-center py-8">
-            <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <h3 className="text-lg font-medium mb-2">No Active Loans</h3>
-            <p className="text-muted-foreground mb-4">You don't have any active loans to manage.</p>
-            <Button>Apply for a New Loan</Button>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
   return (
     <div className="space-y-6">
-      {/* Loan Selection */}
-      {loans.length > 1 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Select Loan</CardTitle>
-            <CardDescription>Choose a loan to manage</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {loans.map((loan) => (
-                <Card 
-                  key={loan._id} 
-                  className={`cursor-pointer transition-colors ${
-                    selectedLoan?._id === loan._id ? 'border-primary' : ''
-                  }`}
-                  onClick={() => handleLoanSelect(loan)}
-                >
-                  <CardContent className="pt-4">
-                    <div className="text-sm font-medium">{loan.applicationNumber}</div>
-                    <div className="text-lg font-bold">₹{loan.approvalDetails?.approvedAmount?.toLocaleString()}</div>
-                    <div className="text-sm text-muted-foreground">{loan.loanDetails.purpose}</div>
-                  </CardContent>
-                </Card>
-              ))}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Loan Details</CardTitle>
+              <CardDescription>Your active medical loan</CardDescription>
             </div>
-          </CardContent>
-        </Card>
-      )}
+            <FileText className="h-8 w-8 text-primary" />
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div className="p-4 bg-primary/10 rounded-lg">
+              <p className="text-sm text-muted-foreground mb-1">Total Loan Amount</p>
+              <p className="text-2xl font-bold">₹{loanDetails.totalLoanAmount.toLocaleString()}</p>
+            </div>
+            <div className="p-4 bg-primary/10 rounded-lg">
+              <p className="text-sm text-muted-foreground mb-1">Remaining Balance</p>
+              <p className="text-2xl font-bold">₹{loanDetails.remainingBalance.toLocaleString()}</p>
+            </div>
+            <div className="p-4 bg-primary/10 rounded-lg">
+              <p className="text-sm text-muted-foreground mb-1">Monthly EMI</p>
+              <p className="text-2xl font-bold">₹{loanDetails.emiAmount.toLocaleString()}</p>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div>
+              <p className="text-sm text-muted-foreground">Loan ID</p>
+              <p className="font-medium">{loanDetails.loanId}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Interest Rate</p>
+              <p className="font-medium">{loanDetails.interestRate}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Term</p>
+              <p className="font-medium">{loanDetails.loanTerm}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Next Payment Due</p>
+              <p className="font-medium text-amber-600">{loanDetails.nextPaymentDue}</p>
+            </div>
+          </div>
+          
+          <div className="relative pt-2">
+            <div className="w-full bg-gray-200 rounded-full h-2.5">
+              <div 
+                className="bg-primary h-2.5 rounded-full" 
+                style={{ width: `${((loanDetails.totalLoanAmount - loanDetails.remainingBalance) / loanDetails.totalLoanAmount) * 100}%` }}
+              ></div>
+            </div>
+            <p className="text-xs text-muted-foreground mt-2">
+              You've paid {Math.round(((loanDetails.totalLoanAmount - loanDetails.remainingBalance) / loanDetails.totalLoanAmount) * 100)}% of your total loan amount
+            </p>
+          </div>
+        </CardContent>
+        <CardFooter className="flex flex-wrap gap-2">
+          <Button onClick={() => setPayEmiDialogOpen(true)}>Pay EMI Now</Button>
+          <Button variant="outline" onClick={() => setPrepayDialogOpen(true)}>Prepay Loan</Button>
+          <Button variant="outline" onClick={handleDownloadStatement}>
+            <Download className="mr-2 h-4 w-4" />
+            Loan Statement
+          </Button>
+          <Button variant="outline" onClick={handleSetReminder}>
+            <Bell className="mr-2 h-4 w-4" />
+            Set Reminder
+          </Button>
+        </CardFooter>
+      </Card>
 
-      {selectedLoan && (
-        <>
-          {/* Loan Details */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>Loan Details</CardTitle>
-                  <CardDescription>Application: {selectedLoan.applicationNumber}</CardDescription>
-                </div>
-                <FileText className="h-8 w-8 text-primary" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <div className="p-4 bg-primary/10 rounded-lg">
-                  <p className="text-sm text-muted-foreground mb-1">Total Loan Amount</p>
-                  <p className="text-2xl font-bold">₹{selectedLoan.approvalDetails?.approvedAmount?.toLocaleString()}</p>
-                </div>
-                <div className="p-4 bg-primary/10 rounded-lg">
-                  <p className="text-sm text-muted-foreground mb-1">Remaining Balance</p>
-                  <p className="text-2xl font-bold">₹{selectedLoan.emiDetails?.remainingBalance?.toLocaleString()}</p>
-                </div>
-                <div className="p-4 bg-primary/10 rounded-lg">
-                  <p className="text-sm text-muted-foreground mb-1">Monthly EMI</p>
-                  <p className="text-2xl font-bold">₹{selectedLoan.emiDetails?.emiAmount?.toLocaleString()}</p>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                <div>
-                  <p className="text-sm text-muted-foreground">Interest Rate</p>
-                  <p className="font-medium">{selectedLoan.approvalDetails?.interestRate}%</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Term</p>
-                  <p className="font-medium">{selectedLoan.approvalDetails?.approvedTenure} months</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">EMIs Paid</p>
-                  <p className="font-medium">{selectedLoan.emiDetails?.paidEmis}/{selectedLoan.emiDetails?.totalEmis}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Next Payment Due</p>
-                  <p className="font-medium text-amber-600">
-                    {selectedLoan.emiDetails?.nextEmiDate ? 
-                      new Date(selectedLoan.emiDetails.nextEmiDate).toLocaleDateString() : 
-                      'N/A'
-                    }
-                  </p>
-                </div>
-              </div>
-              
-              <div className="relative pt-2">
-                <div className="w-full bg-gray-200 rounded-full h-2.5">
-                  <div 
-                    className="bg-primary h-2.5 rounded-full" 
-                    style={{ 
-                      width: `${((selectedLoan.emiDetails?.paidEmis || 0) / (selectedLoan.emiDetails?.totalEmis || 1)) * 100}%` 
-                    }}
-                  ></div>
-                </div>
-                <p className="text-xs text-muted-foreground mt-2">
-                  You've paid {Math.round(((selectedLoan.emiDetails?.paidEmis || 0) / (selectedLoan.emiDetails?.totalEmis || 1)) * 100)}% of your total EMIs
-                </p>
-              </div>
-            </CardContent>
-            <CardFooter className="flex flex-wrap gap-2">
-              <Button onClick={() => setPayEmiDialogOpen(true)}>Pay EMI Now</Button>
-              <Button variant="outline" onClick={() => setPrepayDialogOpen(true)}>Prepay Loan</Button>
-              <Button variant="outline" onClick={handleDownloadStatement}>
-                <Download className="mr-2 h-4 w-4" />
-                Loan Statement
-              </Button>
-              <Button variant="outline" onClick={handleSetReminder}>
-                <Bell className="mr-2 h-4 w-4" />
-                Set Reminder
-              </Button>
-            </CardFooter>
-          </Card>
-
-          {/* EMI Payment History */}
-          <Card>
-            <CardHeader>
-              <CardTitle>EMI Payment History</CardTitle>
-              <CardDescription>View your past and upcoming EMI payments</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {emiSchedule.length > 0 ? (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>EMI #</TableHead>
-                      <TableHead>Due Date</TableHead>
-                      <TableHead>Total Amount</TableHead>
-                      <TableHead>Principal</TableHead>
-                      <TableHead>Interest</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Payment Date</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {emiSchedule.map((emi) => (
-                      <TableRow key={emi._id}>
-                        <TableCell>{emi.emiNumber}</TableCell>
-                        <TableCell>{new Date(emi.dueDate).toLocaleDateString()}</TableCell>
-                        <TableCell>₹{emi.emiAmount.toLocaleString()}</TableCell>
-                        <TableCell>₹{emi.principalAmount.toLocaleString()}</TableCell>
-                        <TableCell>₹{emi.interestAmount.toLocaleString()}</TableCell>
-                        <TableCell>
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            emi.status === 'paid' ? 'bg-green-100 text-green-800' : 
-                            emi.status === 'overdue' ? 'bg-red-100 text-red-800' :
-                            'bg-yellow-100 text-yellow-800'
-                          }`}>
-                            {emi.status}
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          {emi.paymentDate ? new Date(emi.paymentDate).toLocaleDateString() : '-'}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              ) : (
-                <div className="text-center py-6">
-                  <p className="text-muted-foreground">No EMI schedule available</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </>
-      )}
+      <Card>
+        <CardHeader>
+          <CardTitle>EMI Payment History</CardTitle>
+          <CardDescription>View your past EMI payments</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>EMI #</TableHead>
+                <TableHead>Due Date</TableHead>
+                <TableHead>Total Amount</TableHead>
+                <TableHead>Principal</TableHead>
+                <TableHead>Interest</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Payment Date</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {emiHistory.map((emi) => (
+                <TableRow key={emi.emiNumber}>
+                  <TableCell>{emi.emiNumber}</TableCell>
+                  <TableCell>{emi.dueDate}</TableCell>
+                  <TableCell>₹{emi.amount.toLocaleString()}</TableCell>
+                  <TableCell>₹{emi.principal.toLocaleString()}</TableCell>
+                  <TableCell>₹{emi.interest.toLocaleString()}</TableCell>
+                  <TableCell>
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                      {emi.status}
+                    </span>
+                  </TableCell>
+                  <TableCell>{emi.paymentDate}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+        <CardFooter>
+          <Button variant="outline" className="ml-auto">View Complete History</Button>
+        </CardFooter>
+      </Card>
 
       {/* Pay EMI Dialog */}
       <Dialog open={payEmiDialogOpen} onOpenChange={setPayEmiDialogOpen}>
@@ -411,22 +308,17 @@ const LoanManagement = () => {
           <DialogHeader>
             <DialogTitle>Pay EMI</DialogTitle>
             <DialogDescription>
-              Make your monthly EMI payment for Loan {selectedLoan?.applicationNumber}
+              Make your monthly EMI payment for Loan {loanDetails.loanId}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
               <Label>EMI Amount</Label>
-              <div className="text-lg font-bold">₹{selectedLoan?.emiDetails?.emiAmount?.toLocaleString()}</div>
+              <div className="text-lg font-bold">₹{loanDetails.emiAmount.toLocaleString()}</div>
             </div>
             <div className="grid gap-2">
               <Label>Due Date</Label>
-              <div>
-                {selectedLoan?.emiDetails?.nextEmiDate ? 
-                  new Date(selectedLoan.emiDetails.nextEmiDate).toLocaleDateString() : 
-                  'N/A'
-                }
-              </div>
+              <div>{loanDetails.nextPaymentDue}</div>
             </div>
             <div className="grid gap-2">
               <Label htmlFor="payment-method">Payment Method</Label>
@@ -451,14 +343,7 @@ const LoanManagement = () => {
               Cancel
             </Button>
             <Button onClick={handlePayEMI} disabled={processingPayment}>
-              {processingPayment ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Processing...
-                </>
-              ) : (
-                'Pay Now'
-              )}
+              {processingPayment ? "Processing..." : "Pay Now"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -476,7 +361,7 @@ const LoanManagement = () => {
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
               <Label>Outstanding Balance</Label>
-              <div className="text-lg font-bold">₹{selectedLoan?.emiDetails?.remainingBalance?.toLocaleString()}</div>
+              <div className="text-lg font-bold">₹{loanDetails.remainingBalance.toLocaleString()}</div>
             </div>
             
             <div className="grid gap-2">
@@ -503,7 +388,7 @@ const LoanManagement = () => {
                   onChange={(e) => setPrepayAmount(e.target.value)}
                   disabled={isFullPrepay}
                 />
-                {Number(prepayAmount) > (selectedLoan?.emiDetails?.remainingBalance || 0) && (
+                {Number(prepayAmount) > loanDetails.remainingBalance && (
                   <p className="text-sm text-red-500">
                     Amount cannot exceed outstanding balance
                   </p>
@@ -535,16 +420,9 @@ const LoanManagement = () => {
             </Button>
             <Button 
               onClick={handlePrepayLoan} 
-              disabled={processingPayment || (!isFullPrepay && (!prepayAmount || Number(prepayAmount) <= 0 || Number(prepayAmount) > (selectedLoan?.emiDetails?.remainingBalance || 0)))}
+              disabled={processingPayment || (!isFullPrepay && (!prepayAmount || Number(prepayAmount) <= 0 || Number(prepayAmount) > loanDetails.remainingBalance))}
             >
-              {processingPayment ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Processing...
-                </>
-              ) : (
-                'Pay Now'
-              )}
+              {processingPayment ? "Processing..." : "Pay Now"}
             </Button>
           </DialogFooter>
         </DialogContent>

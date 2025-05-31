@@ -1,243 +1,409 @@
-import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { useState, useEffect } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Clock } from "lucide-react";
-import { format } from "date-fns";
-import { cn } from "@/lib/utils";
-import { Appointment } from "@/types/app.types";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import { bookAppointment } from "@/services/appointmentService";
+import { Appointment, Doctor } from "@/types/app.types";
+import { mockHospitals, mockDoctors } from "@/services/mockData";
 
-interface BookAppointmentDialogueProps {
-  isOpen: boolean;
+interface BookAppointmentDialogProps {
+  open: boolean;
   onOpenChange: (open: boolean) => void;
-  onAppointmentBook: (appointment: Appointment) => void;
-  selectedHospital?: {
-    id: string;
-    name: string;
-    doctors: Array<{
-      id: string;
-      name: string;
-      specialty: string;
-      availability: string[];
-    }>;
-  } | null;
+  onAppointmentBooked: (newAppointment: Appointment) => void;
 }
 
-const BookAppointmentDialogue: React.FC<BookAppointmentDialogueProps> = ({
-  isOpen,
-  onOpenChange,
-  onAppointmentBook,
-  selectedHospital
-}) => {
+const BookAppointmentDialog = ({ open, onOpenChange, onAppointmentBooked }: BookAppointmentDialogProps) => {
   const { toast } = useToast();
+  const { authState } = useAuth();
   const [formData, setFormData] = useState({
-    patientName: '',
-    reason: '',
-    notes: '',
-    selectedDoctor: '',
-    selectedDate: undefined as Date | undefined,
-    selectedTime: ''
+    hospitalId: "",
+    doctorId: "",
+    specialty: "",
+    date: "",
+    time: "",
+    reason: "",
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [availableDoctors, setAvailableDoctors] = useState<Doctor[]>([]);
+  const [availableSpecialties, setAvailableSpecialties] = useState<string[]>([]);
+  const [availableTimeSlots, setAvailableTimeSlots] = useState<string[]>([]);
+  const [doctorAvailability, setDoctorAvailability] = useState<string[]>([]);
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
-  const availableTimes = [
-    "09:00 AM", "09:30 AM", "10:00 AM", "10:30 AM", "11:00 AM", "11:30 AM",
-    "12:00 PM", "12:30 PM", "02:00 PM", "02:30 PM", "03:00 PM", "03:30 PM",
-    "04:00 PM", "04:30 PM", "05:00 PM", "05:30 PM"
-  ];
+  // Update available doctors and specialties when hospital changes
+  useEffect(() => {
+    if (formData.hospitalId) {
+      const selectedHospital = mockHospitals.find((h) => h.id === formData.hospitalId);
+      if (selectedHospital) {
+        setAvailableSpecialties(selectedHospital.specialties);
+        const doctors = mockDoctors.filter((d) => d.hospitalId === formData.hospitalId);
+        setAvailableDoctors(doctors);
+      } else {
+        setAvailableSpecialties([]);
+        setAvailableDoctors([]);
+      }
+      setFormData((prev) => ({ ...prev, doctorId: "", specialty: "", date: "", time: "" }));
+      setAvailableTimeSlots([]);
+      setDoctorAvailability([]);
+    }
+  }, [formData.hospitalId]);
 
-  const handleInputChange = (field: string, value: any) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
+  // Update specialty and availability when doctor changes
+  useEffect(() => {
+    if (formData.doctorId) {
+      const selectedDoctor = mockDoctors.find((d) => d.id === formData.doctorId);
+      if (selectedDoctor) {
+        setFormData((prev) => ({ ...prev, specialty: selectedDoctor.specialty }));
+        setDoctorAvailability(selectedDoctor.availability);
+      } else {
+        setDoctorAvailability([]);
+      }
+      setFormData((prev) => ({ ...prev, date: "", time: "" }));
+      setAvailableTimeSlots([]);
+    }
+  }, [formData.doctorId]);
+
+  // Generate time slots when date changes
+  useEffect(() => {
+    if (formData.doctorId && formData.date) {
+      const selectedDoctor = mockDoctors.find((d) => d.id === formData.doctorId);
+      if (selectedDoctor) {
+        const selectedDate = new Date(formData.date);
+        const dayOfWeek = selectedDate.toLocaleString("en-US", { weekday: "long" });
+        const matchingSlot = selectedDoctor.availability.find((slot) =>
+          slot.startsWith(dayOfWeek)
+        );
+        if (matchingSlot) {
+          const [, timeRange] = matchingSlot.split(": ");
+          const [startTime, endTime] = timeRange.split(" - ");
+          const timeSlots = generateTimeSlots(startTime, endTime);
+          setAvailableTimeSlots(timeSlots);
+        } else {
+          setAvailableTimeSlots([]);
+          setErrors((prev) => ({
+            ...prev,
+            date: `Doctor is not available on ${dayOfWeek}`,
+          }));
+        }
+      }
+    } else {
+      setAvailableTimeSlots([]);
+    }
+  }, [formData.doctorId, formData.date]);
+
+  // Helper function to generate time slots in 30-minute intervals
+  const generateTimeSlots = (startTime: string, endTime: string): string[] => {
+    const timeSlots: string[] = [];
+    const start = parseTime(startTime);
+    const end = parseTime(endTime);
+    let current = start;
+
+    while (current <= end) {
+      timeSlots.push(formatTime(current));
+      current = new Date(current.getTime() + 30 * 60 * 1000); // Add 30 minutes
+    }
+
+    return timeSlots;
   };
 
-  const handleSubmit = () => {
-    if (!formData.patientName || !formData.selectedDoctor || !formData.selectedDate || !formData.selectedTime || !formData.reason) {
+  // Parse time string (supports both "9AM"/"2PM" and "HH:MM" formats)
+  const parseTime = (timeStr: string): Date => {
+    const date = new Date();
+    date.setSeconds(0, 0); // Clear seconds and milliseconds
+
+    // Handle 12-hour format with AM/PM (e.g., "9AM", "2PM")
+    const amPmMatch = timeStr.match(/(\d+)(AM|PM)/);
+    if (amPmMatch) {
+      const [, hours, period] = amPmMatch;
+      let hour = parseInt(hours);
+      if (period === "PM" && hour !== 12) hour += 12;
+      if (period === "AM" && hour === 12) hour = 0;
+      date.setHours(hour, 0);
+      return date;
+    }
+
+    // Handle 24-hour format (e.g., "11:30")
+    const timeMatch = timeStr.match(/(\d{1,2}):(\d{2})/);
+    if (timeMatch) {
+      const [, hours, minutes] = timeMatch;
+      date.setHours(parseInt(hours), parseInt(minutes));
+      return date;
+    }
+
+    throw new Error(`Invalid time format: ${timeStr}`);
+  };
+
+  // Format Date object to time string (e.g., "09:00" or "14:30")
+  const formatTime = (date: Date): string => {
+    const hours = date.getHours().toString().padStart(2, "0");
+    const minutes = date.getMinutes().toString().padStart(2, "0");
+    return `${hours}:${minutes}`;
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+    setErrors((prev) => ({ ...prev, [name]: "" }));
+  };
+
+  const handleSelectChange = (name: string, value: string) => {
+    setFormData((prev) => ({ ...prev, [name]: value }));
+    setErrors((prev) => ({ ...prev, [name]: "" }));
+  };
+
+  const validateForm = () => {
+    const newErrors: { [key: string]: string } = {};
+    if (!formData.hospitalId) newErrors.hospitalId = "Please select a hospital";
+    if (!formData.doctorId) newErrors.doctorId = "Please select a doctor";
+    if (!formData.date) newErrors.date = "Please select a date";
+    if (!formData.time) newErrors.time = "Please select a time";
+    if (!formData.reason.trim()) newErrors.reason = "Please provide a reason for the visit";
+
+    // Validate date and time against doctor's availability
+    if (formData.doctorId && formData.date && formData.time) {
+      const selectedDoctor = mockDoctors.find((d) => d.id === formData.doctorId);
+      if (selectedDoctor) {
+        const selectedDate = new Date(formData.date);
+        const dayOfWeek = selectedDate.toLocaleString("en-US", { weekday: "long" });
+        const isAvailable = selectedDoctor.availability.some((slot) => {
+          const [day, timeRange] = slot.split(": ");
+          const [startTime, endTime] = timeRange.split(" - ");
+          const selectedTime = parseTime(formData.time);
+          const start = parseTime(startTime);
+          const end = parseTime(endTime);
+          return (
+            day === dayOfWeek &&
+            selectedTime.getTime() >= start.getTime() &&
+            selectedTime.getTime() <= end.getTime()
+          );
+        });
+        if (!isAvailable) {
+          newErrors.time = `Doctor is not available on ${dayOfWeek} at ${formData.time}`;
+        }
+        // Ensure date is in the future
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        if (selectedDate < today) {
+          newErrors.date = "Date must be in the future";
+        }
+      }
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!authState.user?.id) {
       toast({
+        title: "Error",
+        description: "User not authenticated. Please log in.",
         variant: "destructive",
-        title: "Missing Information",
-        description: "Please fill in all required fields."
       });
       return;
     }
 
-    if (!selectedHospital) {
+    if (!validateForm()) {
       toast({
+        title: "Validation Error",
+        description: "Please correct the errors in the form.",
         variant: "destructive",
-        title: "No Hospital Selected",
-        description: "Please select a hospital first."
       });
       return;
     }
 
-    const selectedDoc = selectedHospital.doctors.find(doc => doc.id === formData.selectedDoctor);
-    
-    const newAppointment: Appointment = {
-      id: `apt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`, // Generate unique ID
-      patientName: formData.patientName,
-      patientId: 'current_user_id', // This should come from auth context
-      hospitalName: selectedHospital.name,
-      hospitalId: selectedHospital.id,
-      doctorName: selectedDoc?.name || '',
-      specialty: selectedDoc?.specialty || '',
-      date: format(formData.selectedDate, 'yyyy-MM-dd'),
-      time: formData.selectedTime,
-      reason: formData.reason,
-      status: 'confirmed',
-      notes: formData.notes
-    };
+    setIsSubmitting(true);
+    try {
+      const selectedHospital = mockHospitals.find((h) => h.id === formData.hospitalId);
+      const selectedDoctor = mockDoctors.find((d) => d.id === formData.doctorId);
 
-    onAppointmentBook(newAppointment);
-    
-    // Reset form
-    setFormData({
-      patientName: '',
-      reason: '',
-      notes: '',
-      selectedDoctor: '',
-      selectedDate: undefined,
-      selectedTime: ''
-    });
-    
-    onOpenChange(false);
-    
-    toast({
-      title: "Appointment Booked",
-      description: `Your appointment with Dr. ${selectedDoc?.name} has been confirmed for ${format(formData.selectedDate, 'PPP')} at ${formData.selectedTime}.`
-    });
+      const appointmentData: Appointment = {
+        patientName: `${authState.user.firstName} ${authState.user.lastName}`,
+        patientId: authState.user.id,
+        hospitalName: selectedHospital?.name || "",
+        hospitalId: formData.hospitalId,
+        doctorName: selectedDoctor?.name || "",
+        specialty: formData.specialty,
+        date: formData.date,
+        time: formData.time,
+        reason: formData.reason,
+        status: "confirmed",
+        notes: "",
+      };
+
+      const newAppointment = await bookAppointment(appointmentData);
+      onAppointmentBooked(newAppointment);
+      toast({
+        title: "Appointment Booked",
+        description: "Your appointment has been booked successfully.",
+      });
+      setFormData({
+        hospitalId: "",
+        doctorId: "",
+        specialty: "",
+        date: "",
+        time: "",
+        reason: "",
+      });
+      setErrors({});
+      setAvailableTimeSlots([]);
+      setDoctorAvailability([]);
+      onOpenChange(false);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to book appointment. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px] max-h-[80vh] overflow-y-auto">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Book Appointment</DialogTitle>
-          <DialogDescription>
-            {selectedHospital ? `Book an appointment at ${selectedHospital.name}` : 'Please select a hospital first'}
-          </DialogDescription>
+          <DialogTitle>Book New Appointment</DialogTitle>
+          <DialogDescription>Fill in the details to schedule a new appointment.</DialogDescription>
         </DialogHeader>
-
-        {!selectedHospital ? (
-          <div className="py-6 text-center">
-            <p className="text-muted-foreground">Please select a hospital from the list to book an appointment.</p>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="hospitalId">Hospital</Label>
+            <Select
+              name="hospitalId"
+              onValueChange={(value) => handleSelectChange("hospitalId", value)}
+              value={formData.hospitalId}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select a hospital" />
+              </SelectTrigger>
+              <SelectContent>
+                {mockHospitals.map((hospital) => (
+                  <SelectItem key={hospital.id} value={hospital.id}>
+                    {hospital.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {errors.hospitalId && <p className="text-sm text-red-500">{errors.hospitalId}</p>}
           </div>
-        ) : (
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="patientName">Patient Name *</Label>
-              <Input
-                id="patientName"
-                value={formData.patientName}
-                onChange={(e) => handleInputChange('patientName', e.target.value)}
-                placeholder="Enter patient name"
-              />
-            </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="doctor">Select Doctor *</Label>
-              <Select value={formData.selectedDoctor} onValueChange={(value) => handleInputChange('selectedDoctor', value)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Choose a doctor" />
-                </SelectTrigger>
-                <SelectContent>
-                  {selectedHospital.doctors.map((doctor) => (
-                    <SelectItem key={doctor.id} value={doctor.id}>
-                      Dr. {doctor.name} - {doctor.specialty}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="grid gap-2">
-              <Label>Appointment Date *</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant={"outline"}
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !formData.selectedDate && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {formData.selectedDate ? format(formData.selectedDate, "PPP") : <span>Pick a date</span>}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <Calendar
-                    mode="single"
-                    selected={formData.selectedDate}
-                    onSelect={(date) => handleInputChange('selectedDate', date)}
-                    disabled={(date) => date < new Date()}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="time">Preferred Time *</Label>
-              <Select value={formData.selectedTime} onValueChange={(value) => handleInputChange('selectedTime', value)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select time slot" />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableTimes.map((time) => (
-                    <SelectItem key={time} value={time}>
-                      <div className="flex items-center">
-                        <Clock className="mr-2 h-4 w-4" />
-                        {time}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="reason">Reason for Visit *</Label>
-              <Input
-                id="reason"
-                value={formData.reason}
-                onChange={(e) => handleInputChange('reason', e.target.value)}
-                placeholder="e.g., Regular checkup, Follow-up, etc."
-              />
-            </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="notes">Additional Notes</Label>
-              <Textarea
-                id="notes"
-                value={formData.notes}
-                onChange={(e) => handleInputChange('notes', e.target.value)}
-                placeholder="Any additional information or special requests"
-                rows={3}
-              />
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="doctorId">Doctor</Label>
+            <Select
+              name="doctorId"
+              onValueChange={(value) => handleSelectChange("doctorId", value)}
+              value={formData.doctorId}
+              disabled={!formData.hospitalId}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select a doctor" />
+              </SelectTrigger>
+              <SelectContent>
+                {availableDoctors.map((doctor) => (
+                  <SelectItem key={doctor.id} value={doctor.id}>
+                    {doctor.name} ({doctor.specialty})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {errors.doctorId && <p className="text-sm text-red-500">{errors.doctorId}</p>}
           </div>
-        )}
-
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          {selectedHospital && (
-            <Button onClick={handleSubmit}>
-              Book Appointment
+          <div className="space-y-2">
+            <Label>Doctor Availability</Label>
+            {doctorAvailability.length > 0 ? (
+              <ul className="text-sm text-gray-600 bg-gray-50 p-3 rounded-md">
+                {doctorAvailability.map((slot, index) => (
+                  <li key={index} className="list-disc ml-4">
+                    {slot}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-gray-500">
+                {formData.doctorId
+                  ? "No availability information available"
+                  : "Select a doctor to view availability"}
+              </p>
+            )}
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="specialty">Specialty</Label>
+            <Input
+              id="specialty"
+              name="specialty"
+              value={formData.specialty}
+              readOnly
+              placeholder="Select a doctor to set specialty"
+            />
+            {errors.specialty && <p className="text-sm text-red-500">{errors.specialty}</p>}
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="date">Date</Label>
+            <Input
+              id="date"
+              name="date"
+              type="date"
+              value={formData.date}
+              onChange={handleInputChange}
+              min={new Date().toISOString().split("T")[0]}
+              required
+            />
+            {errors.date && <p className="text-sm text-red-500">{errors.date}</p>}
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="time">Time</Label>
+            <Select
+              name="time"
+              onValueChange={(value) => handleSelectChange("time", value)}
+              value={formData.time}
+              disabled={!formData.date || availableTimeSlots.length === 0}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select a time" />
+              </SelectTrigger>
+              <SelectContent>
+                {availableTimeSlots.map((slot) => (
+                  <SelectItem key={slot} value={slot}>
+                    {slot}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {errors.time && <p className="text-sm text-red-500">{errors.time}</p>}
+            {!errors.time && availableTimeSlots.length === 0 && formData.date && (
+              <p className="text-sm text-red-500">No time slots available for the selected date</p>
+            )}
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="reason">Reason for Visit</Label>
+            <Textarea
+              id="reason"
+              name="reason"
+              value={formData.reason}
+              onChange={handleInputChange}
+              placeholder="Describe the reason for your visit"
+            />
+            {errors.reason && <p className="text-sm text-red-500">{errors.reason}</p>}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
             </Button>
-          )}
-        </DialogFooter>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? "Booking..." : "Book Appointment"}
+            </Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );
 };
 
-export default BookAppointmentDialogue;
+export default BookAppointmentDialog;

@@ -45,17 +45,3 @@ export const apiRequest = async (
     throw error;
   }
 };
-
-// Create api object for backwards compatibility
-export const api = {
-  get: (endpoint: string) => apiRequest(endpoint, { method: 'GET' }),
-  post: (endpoint: string, data?: any) => apiRequest(endpoint, { 
-    method: 'POST', 
-    body: data ? JSON.stringify(data) : undefined 
-  }),
-  put: (endpoint: string, data?: any) => apiRequest(endpoint, { 
-    method: 'PUT', 
-    body: data ? JSON.stringify(data) : undefined 
-  }),
-  delete: (endpoint: string) => apiRequest(endpoint, { method: 'DELETE' })
-};

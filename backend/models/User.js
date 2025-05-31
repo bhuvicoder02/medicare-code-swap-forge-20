@@ -21,42 +21,16 @@ const UserSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['patient', 'hospital', 'admin', 'sales', 'crm'],
+    enum: ['patient', 'hospital', 'admin', 'sales', 'crm', 'agent', 'support'],
     default: 'patient'
   },
-  patientId: {
-    type: String,
-    unique: true,
-    sparse: true // Only for patients
+  avatar: {
+    type: String
   },
-  profile: {
-    phone: String,
-    dateOfBirth: Date,
-    address: String,
-    city: String,
-    state: String,
-    zipCode: String,
-    emergencyContact: {
-      name: String,
-      phone: String,
-      relationship: String
-    }
-  },
-  isActive: {
-    type: Boolean,
-    default: true
+  date: {
+    type: Date,
+    default: Date.now
   }
-}, {
-  timestamps: true
-});
-
-// Generate patientId before saving for patient users
-UserSchema.pre('save', async function(next) {
-  if (this.role === 'patient' && !this.patientId) {
-    const count = await mongoose.model('user').countDocuments({ role: 'patient' });
-    this.patientId = `P${String(count + 1).padStart(3, '0')}`;
-  }
-  next();
 });
 
 module.exports = mongoose.model('user', UserSchema);

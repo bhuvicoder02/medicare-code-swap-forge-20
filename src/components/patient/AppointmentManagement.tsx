@@ -8,7 +8,7 @@ import { fetchPatientAppointments, cancelAppointment } from "@/services/appointm
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import BookAppointmentDialogue from "./BookAppointmentDialogue"; // Import the new dialog component
+import BookAppointmentDialog from "./BookAppointmentDialogue"; // Import the new dialog component
 import { Appointment } from "@/types/app.types";
 
 const AppointmentManagement = () => {
@@ -20,8 +20,6 @@ const AppointmentManagement = () => {
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
   const [bookDialogOpen, setBookDialogOpen] = useState(false); // State for book dialog
-  const [isDialogOpen, setIsDialogOpen] = useState(false); // State for new dialog
-  const [selectedHospital, setSelectedHospital] = useState(null); // State for new dialog
 
   useEffect(() => {
     const loadAppointments = async () => {
@@ -100,11 +98,6 @@ const AppointmentManagement = () => {
         variant: "destructive",
       });
     }
-  };
-
-  const handleAppointmentBook = (newAppointment: Appointment) => {
-    setBookDialogOpen(false); // Close the dialog
-    handleAppointmentBooked(newAppointment); // Add new appointment to list
   };
 
   if (isLoading) {
@@ -228,11 +221,10 @@ const AppointmentManagement = () => {
         </DialogContent>
       </Dialog>
 
-      <BookAppointmentDialogue 
-        isOpen={isDialogOpen}
-        onOpenChange={setIsDialogOpen}
-        onAppointmentBook={handleAppointmentBook}
-        selectedHospital={selectedHospital}
+      <BookAppointmentDialog
+        open={bookDialogOpen}
+        onOpenChange={setBookDialogOpen}
+        onAppointmentBooked={handleAppointmentBooked}
       />
     </div>
   );
