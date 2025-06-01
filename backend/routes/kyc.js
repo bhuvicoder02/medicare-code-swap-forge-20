@@ -50,7 +50,7 @@ router.post('/complete', [
     }
 
     // Generate UHID if not exists
-    if (!user.uhid) {
+    if (!user.uhid || user.uhid === null) {
       user.uhid = generateUHID();
     }
 

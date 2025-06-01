@@ -43,10 +43,6 @@ router.post(
 
       // Generate UHID for patients
       let uhid = null;
-      if (role === 'patient') {
-        const patientCount = await User.countDocuments({ role: 'patient' });
-        uhid = `UH${String(patientCount + 1).padStart(8, '0')}`;
-      }
 
       // Create new user
       user = new User({
