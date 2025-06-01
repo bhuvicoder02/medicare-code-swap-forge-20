@@ -112,6 +112,7 @@ export interface AuthUser {
   role?: UserRole;
   firstName?: string;
   lastName?: string;
+  kycStatus?: 'pending' | 'completed' | 'rejected';
 }
 
 export interface AuthState {
