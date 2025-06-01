@@ -1,4 +1,3 @@
-
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
@@ -17,7 +16,9 @@ router.post(
     check('firstName', 'First name is required').not().isEmpty(),
     check('lastName', 'Last name is required').not().isEmpty(),
     check('email', 'Please include a valid email').isEmail(),
-    check('password', 'Please enter a password with 6 or more characters').isLength({ min: 6 })
+    check('password', 'Please enter a password with 6 or more characters').isLength({ min: 6 }),
+    check('phone', 'Please enter a valid phone number').matches(/^\d{10}$/),
+    check('role', 'Role is required').not().isEmpty()
   ],
   async (req, res) => {
     const errors = validationResult(req);
@@ -25,29 +26,61 @@ router.post(
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { firstName, lastName, email, password, role } = req.body;
+    const { firstName, lastName, email, password, phone, role } = req.body;
 
     try {
+      // Check if user exists
       let user = await User.findOne({ email });
-
       if (user) {
-        return res.status(400).json({ msg: 'User already exists' });
+        return res.status(400).json({ msg: 'User already exists with this email' });
       }
 
+      // Check if phone number is already registered
+      user = await User.findOne({ phone });
+      if (user) {
+        return res.status(400).json({ msg: 'User already exists with this phone number' });
+      }
+
+      // Generate UHID for patients
+      let uhid = null;
+      if (role === 'patient') {
+        const patientCount = await User.countDocuments({ role: 'patient' });
+        uhid = `UH${String(patientCount + 1).padStart(8, '0')}`;
+      }
+
+      // Create new user
       user = new User({
         firstName,
         lastName,
         email,
         password,
-        role: role || 'patient'
+        phone,
+        role,
+        uhid,
+        kycStatus: 'pending',
+        dateJoined: new Date(),
+        kycData: role === 'patient' ? {
+          panNumber: '',
+          aadhaarNumber: '',
+          dateOfBirth: '',
+          gender: '',
+          address: '',
+          city: '',
+          state: '',
+          zipCode: '',
+          maritalStatus: '',
+          dependents: '0'
+        } : null
       });
 
+      // Hash password
       const salt = await bcrypt.genSalt(10);
-
       user.password = await bcrypt.hash(password, salt);
 
+      // Save user
       await user.save();
 
+      // Create JWT payload
       const payload = {
         user: {
           id: user.id,
@@ -55,20 +88,33 @@ router.post(
         }
       };
 
+      // Generate and return JWT
       jwt.sign(
         payload,
         process.env.JWT_SECRET,
         {
-          expiresIn: 360000
+          expiresIn: '24h'
         },
         (err, token) => {
           if (err) throw err;
-          res.json({ token });
+          res.json({
+            token,
+            user: {
+              id: user.id,
+              firstName: user.firstName,
+              lastName: user.lastName,
+              email: user.email,
+              phone: user.phone,
+              role: user.role,
+              uhid: user.uhid,
+              kycStatus: user.kycStatus
+            }
+          });
         }
       );
     } catch (err) {
-      console.error(err.message);
-      res.status(500).send('Server Error');
+      console.error('Signup error:', err.message);
+      res.status(500).json({ msg: 'Server error during registration' });
     }
   }
 );
