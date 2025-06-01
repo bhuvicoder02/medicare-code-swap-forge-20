@@ -87,7 +87,9 @@ export const getCurrentUser = async (): Promise<AuthUser | null> => {
         email: data.email,
         role: data.role,
         firstName: data.firstName,
-        lastName: data.lastName
+        lastName: data.lastName,
+        kycStatus: data.kycStatus || 'pending',
+        uhid: data.uhid || '',
       };
     }
     

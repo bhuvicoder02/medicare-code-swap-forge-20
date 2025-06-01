@@ -113,6 +113,7 @@ export interface AuthUser {
   firstName?: string;
   lastName?: string;
   kycStatus?: 'pending' | 'completed' | 'rejected';
+  uhid?: string; // Unique Health ID
 }
 
 export interface AuthState {
