@@ -6,33 +6,15 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { CreditCard, Plus, FileText, AlertCircle, Check } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
-import { apiRequest } from '@/services/api';
+import { useAuth } from '@/hooks/useAuth';
+import { fetchPatientLoans, LoanData } from '@/services/loanService';
 import KycCompletion from './KycCompletion';
 import LoanApplicationDialog from './LoanApplicationDialog';
 
-interface Loan {
-  _id: string;
-  applicationNumber: string;
-  status: string;
-  loanDetails: {
-    requestedAmount: number;
-    approvedAmount?: number;
-    preferredTerm: number;
-    interestRate?: number;
-  };
-  medicalInfo: {
-    treatmentRequired: string;
-  };
-  applicationDate: string;
-  approvalDate?: string;
-  rejectionReason?: string;
-  monthlyPayment?: number;
-  remainingBalance?: number;
-}
-
 const MyLoans = () => {
   const { toast } = useToast();
-  const [loans, setLoans] = useState<Loan[]>([]);
+  const { authState } = useAuth();
+  const [loans, setLoans] = useState<LoanData[]>([]);
   const [loading, setLoading] = useState(true);
   const [kycStatus, setKycStatus] = useState<string>('');
   const [uhid, setUhid] = useState<string>('');
@@ -41,27 +23,34 @@ const MyLoans = () => {
   const [showLoanApplication, setShowLoanApplication] = useState(false);
 
   useEffect(() => {
-    fetchKycStatus();
-    fetchLoans();
-  }, []);
-
-  const fetchKycStatus = async () => {
-    try {
-      const response = await apiRequest('/kyc/status');
-      setKycStatus(response.kycStatus);
-      setUhid(response.uhid || '');
-      setKycData(response.kycData);
-    } catch (error) {
-      console.error('Failed to fetch KYC status:', error);
+    if (authState.user) {
+      // Get KYC status and UHID from user data
+      const userData = authState.user as any;
+      setKycStatus(userData.kycStatus || '');
+      setUhid(userData.uhid || '');
+      setKycData(userData.kycData || null);
+      
+      // Fetch loans if KYC is completed
+      if (userData.kycStatus === 'completed' && userData.uhid) {
+        fetchLoans(userData.uhid);
+      } else {
+        setLoading(false);
+      }
     }
-  };
+  }, [authState.user]);
 
-  const fetchLoans = async () => {
+  const fetchLoans = async (userUhid: string) => {
     try {
-      const response = await apiRequest('/loans');
-      setLoans(Array.isArray(response) ? response : []);
+      setLoading(true);
+      const loansData = await fetchPatientLoans(userUhid);
+      setLoans(loansData);
     } catch (error) {
       console.error('Failed to fetch loans:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch loans. Please try again.",
+        variant: "destructive",
+      });
       setLoans([]);
     } finally {
       setLoading(false);
@@ -79,7 +68,10 @@ const MyLoans = () => {
   };
 
   const handleLoanApplicationSuccess = () => {
-    fetchLoans();
+    if (uhid) {
+      fetchLoans(uhid);
+    }
+    setShowLoanApplication(false);
     toast({
       title: "Application Submitted",
       description: "Your loan application has been submitted successfully",
@@ -181,6 +173,11 @@ const MyLoans = () => {
                     <TableCell>{loan.medicalInfo?.treatmentRequired || 'N/A'}</TableCell>
                     <TableCell>
                       ₹{loan.loanDetails?.requestedAmount?.toLocaleString() || 0}
+                      {loan.loanDetails?.approvedAmount && loan.status === 'approved' && (
+                        <div className="text-sm text-green-600">
+                          Approved: ₹{loan.loanDetails.approvedAmount.toLocaleString()}
+                        </div>
+                      )}
                     </TableCell>
                     <TableCell>
                       <Badge className={getStatusColor(loan.status)}>
