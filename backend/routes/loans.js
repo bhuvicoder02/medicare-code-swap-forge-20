@@ -1,3 +1,4 @@
+
 const express = require('express');
 const router = express.Router();
 const { check, validationResult } = require('express-validator');
@@ -88,36 +89,45 @@ router.post('/draft', auth, async (req, res) => {
     });
 
     if (!loan) {
+      // Create new draft loan with temporary application number
+      const count = await Loan.countDocuments();
+      const tempApplicationNumber = `ML${new Date().getFullYear()}${String(count + 1).padStart(6, '0')}`;
+      
       loan = new Loan({
         user: req.user.id,
         uhid: kycInfo.uhid,
+        applicationNumber: tempApplicationNumber,
         currentStep: step || 1,
-        kycStatus: kycInfo.kycStatus
+        kycStatus: kycInfo.kycStatus,
+        status: 'draft'
       });
     }
 
-    // Sync KYC data if not present
-    if (!loan.kycData && kycInfo.kycData) {
-      loan.kycData = kycInfo.kycData;
-    }
-
-    // Update loan data based on step
-    if (step === 1 && data.personalInfo) {
+    // Update loan data based on what's provided in data
+    if (data.personalInfo) {
       loan.personalInfo = { ...loan.personalInfo, ...data.personalInfo };
-    } else if (step === 2 && data.creditScore) {
-      loan.creditScore = data.creditScore;
-      const criteria = getCreditScoreCriteria(data.creditScore);
-      loan.maxEligibleAmount = criteria.maxAmount;
-      loan.loanDetails = { ...loan.loanDetails, interestRate: criteria.interestRate };
-    } else if (step === 3 && data.employmentInfo) {
+    }
+    if (data.employmentInfo) {
       loan.employmentInfo = { ...loan.employmentInfo, ...data.employmentInfo };
-    } else if (step === 4 && data.loanDetails) {
+    }
+    if (data.medicalInfo) {
+      loan.medicalInfo = { ...loan.medicalInfo, ...data.medicalInfo };
+    }
+    if (data.loanDetails) {
       loan.loanDetails = { ...loan.loanDetails, ...data.loanDetails };
-    } else if (step === 5 && data.documents) {
+    }
+    if (data.documents) {
       loan.documents = { ...loan.documents, ...data.documents };
     }
 
-    loan.currentStep = Math.max(loan.currentStep, step || 1);
+    // Update step and other fields
+    loan.currentStep = Math.max(loan.currentStep || 1, step || 1);
+    
+    if (data.transactionId) loan.transactionId = data.transactionId;
+    if (data.agreementSigned !== undefined) loan.agreementSigned = data.agreementSigned;
+    if (data.nachMandateSigned !== undefined) loan.nachMandateSigned = data.nachMandateSigned;
+    if (data.termsAccepted !== undefined) loan.termsAccepted = data.termsAccepted;
+
     await loan.save();
 
     res.json(loan);
@@ -159,14 +169,9 @@ router.post('/submit', auth, async (req, res) => {
       loan = new Loan({
         user: req.user.id,
         uhid: kycInfo.uhid,
-        kycStatus: kycInfo.kycStatus,
-        kycData: kycInfo.kycData
+        kycStatus: kycInfo.kycStatus
       });
     }
-
-    // Update KYC related fields
-    loan.kycStatus = kycInfo.kycStatus;
-    loan.kycData = kycInfo.kycData;
 
     // Update all loan data
     loan.personalInfo = personalInfo;
@@ -277,8 +282,7 @@ router.get('/draft/current', auth, async (req, res) => {
   try {
     const loan = await Loan.findOne({ 
       user: req.user.id, 
-      status: 'draft',
-      submissionDate: { $exists: false }
+      status: 'draft'
     });
     
     res.json({ loan });
