@@ -134,11 +134,63 @@ const LoanApplicationDialog = ({ open, onOpenChange, onSuccess, uhid, existingLo
     console.log('Loading existing loan data:', existingLoan);
     
     setFormData({
-      personalInfo: existingLoan.personalInfo || formData.personalInfo,
-      employmentInfo: existingLoan.employmentInfo || formData.employmentInfo,
-      medicalInfo: existingLoan.medicalInfo || formData.medicalInfo,
-      loanDetails: existingLoan.loanDetails || formData.loanDetails,
-      documents: existingLoan.documents || formData.documents,
+      personalInfo: {
+        fullName: existingLoan.personalInfo?.fullName || '',
+        dateOfBirth: existingLoan.personalInfo?.dateOfBirth || '',
+        gender: existingLoan.personalInfo?.gender || '',
+        phoneNumber: existingLoan.personalInfo?.phoneNumber || '',
+        secondaryPhone: existingLoan.personalInfo?.secondaryPhone || '',
+        email: existingLoan.personalInfo?.email || '',
+        homeAddress: existingLoan.personalInfo?.homeAddress || '',
+        city: existingLoan.personalInfo?.city || '',
+        state: existingLoan.personalInfo?.state || '',
+        zipCode: existingLoan.personalInfo?.zipCode || '',
+        nationalId: existingLoan.personalInfo?.nationalId || '',
+        maritalStatus: existingLoan.personalInfo?.maritalStatus || '',
+        dependents: existingLoan.personalInfo?.dependents || '',
+        citizenshipStatus: existingLoan.personalInfo?.citizenshipStatus || '',
+        languagePreference: existingLoan.personalInfo?.languagePreference || 'english'
+      },
+      employmentInfo: {
+        employerName: existingLoan.employmentInfo?.employerName || '',
+        employerAddress: existingLoan.employmentInfo?.employerAddress || '',
+        occupation: existingLoan.employmentInfo?.occupation || '',
+        employmentStatus: existingLoan.employmentInfo?.employmentStatus || 'full-time',
+        startDate: existingLoan.employmentInfo?.startDate || '',
+        monthlyGrossIncome: existingLoan.employmentInfo?.monthlyGrossIncome || 0,
+        additionalIncome: existingLoan.employmentInfo?.additionalIncome || '',
+        unemploymentBenefits: existingLoan.employmentInfo?.unemploymentBenefits || false,
+        totalHouseholdIncome: existingLoan.employmentInfo?.totalHouseholdIncome || 0,
+        householdMembersInfo: existingLoan.employmentInfo?.householdMembersInfo || '',
+        incomeFluctuation: existingLoan.employmentInfo?.incomeFluctuation || ''
+      },
+      medicalInfo: {
+        treatmentRequired: existingLoan.medicalInfo?.treatmentRequired || '',
+        medicalProvider: existingLoan.medicalInfo?.medicalProvider || '',
+        treatmentStarted: existingLoan.medicalInfo?.treatmentStarted || false,
+        estimatedCost: existingLoan.medicalInfo?.estimatedCost || 0,
+        insuranceCoverage: existingLoan.medicalInfo?.insuranceCoverage || 0,
+        insuranceProvider: existingLoan.medicalInfo?.insuranceProvider || '',
+        policyNumber: existingLoan.medicalInfo?.policyNumber || '',
+        healthPlanCovered: existingLoan.medicalInfo?.healthPlanCovered || false,
+        appliedFinancialAssistance: existingLoan.medicalInfo?.appliedFinancialAssistance || false,
+        preExistingConditions: existingLoan.medicalInfo?.preExistingConditions || '',
+        outstandingMedicalDebt: existingLoan.medicalInfo?.outstandingMedicalDebt || ''
+      },
+      loanDetails: {
+        requestedAmount: existingLoan.loanDetails?.requestedAmount || 0,
+        preferredTerm: existingLoan.loanDetails?.preferredTerm || 12,
+        repaymentMethod: existingLoan.loanDetails?.repaymentMethod || 'monthly',
+        hospitalName: existingLoan.loanDetails?.hospitalName || '',
+        purposeOfLoan: existingLoan.loanDetails?.purposeOfLoan || ''
+      },
+      documents: {
+        panCard: existingLoan.documents?.panCard || '',
+        aadhaarCard: existingLoan.documents?.aadhaarCard || '',
+        incomeProof: existingLoan.documents?.incomeProof || '',
+        bankStatement: existingLoan.documents?.bankStatement || '',
+        medicalDocuments: existingLoan.documents?.medicalDocuments || ''
+      },
       transactionId: existingLoan.transactionId || '',
       agreementSigned: existingLoan.agreementSigned || false,
       nachMandateSigned: existingLoan.nachMandateSigned || false,
