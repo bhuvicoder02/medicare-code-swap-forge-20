@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,6 +9,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { fetchPatientLoans, LoanData } from '@/services/loanService';
 import KycCompletion from './KycCompletion';
 import LoanApplicationDialog from './LoanApplicationDialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 
 const MyLoans = () => {
   const { toast } = useToast();
@@ -21,6 +22,8 @@ const MyLoans = () => {
   const [kycData, setKycData] = useState<any>(null);
   const [showKycCompletion, setShowKycCompletion] = useState(false);
   const [showLoanApplication, setShowLoanApplication] = useState(false);
+  const [showLoanDetails, setShowLoanDetails] = useState(false);
+  const [selectedLoan, setSelectedLoan] = useState<LoanData | null>(null);
 
   useEffect(() => {
     if (authState.user) {
@@ -76,6 +79,11 @@ const MyLoans = () => {
       title: "Application Submitted",
       description: "Your loan application has been submitted successfully",
     });
+  };
+
+  const handleViewDetails = (loan: LoanData) => {
+    setSelectedLoan(loan);
+    setShowLoanDetails(true);
   };
 
   const getStatusColor = (status: string) => {
@@ -156,7 +164,7 @@ const MyLoans = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Application #</TableHead>
+                  <TableHead>Application No.</TableHead>
                   <TableHead>Treatment</TableHead>
                   <TableHead>Amount</TableHead>
                   <TableHead>Status</TableHead>
@@ -188,7 +196,11 @@ const MyLoans = () => {
                       {new Date(loan.applicationDate).toLocaleDateString()}
                     </TableCell>
                     <TableCell>
-                      <Button variant="outline" size="sm">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => handleViewDetails(loan)}
+                      >
                         <FileText className="h-4 w-4 mr-1" />
                         View Details
                       </Button>
@@ -217,6 +229,100 @@ const MyLoans = () => {
         uhid={uhid}
         kycData={kycData}
       />
+
+      {/* Loan Details Dialog */}
+      {selectedLoan && (
+        <Dialog open={showLoanDetails} onOpenChange={setShowLoanDetails}>
+          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Loan Application Details</DialogTitle>
+            </DialogHeader>
+            
+            <div className="space-y-6">
+              {/* Application Info */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Application Information</CardTitle>
+                </CardHeader>
+                <CardContent className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Application Number</Label>
+                    <p className="font-mono">{selectedLoan.applicationNumber}</p>
+                  </div>
+                  <div>
+                    <Label>Status</Label>
+                    <Badge className={getStatusColor(selectedLoan.status)}>
+                      {selectedLoan.status.replace('_', ' ').toUpperCase()}
+                    </Badge>
+                  </div>
+                  <div>
+                    <Label>Applied Date</Label>
+                    <p>{new Date(selectedLoan.applicationDate).toLocaleDateString()}</p>
+                  </div>
+                  <div>
+                    <Label>Requested Amount</Label>
+                    <p>₹{selectedLoan.loanDetails?.requestedAmount?.toLocaleString()}</p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Medical Information */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Medical Details</CardTitle>
+                </CardHeader>
+                <CardContent className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Treatment Required</Label>
+                    <p>{selectedLoan.medicalInfo?.treatmentRequired || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <Label>Medical Provider</Label>
+                    <p>{selectedLoan.medicalInfo?.medicalProvider || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <Label>Estimated Cost</Label>
+                    <p>₹{selectedLoan.medicalInfo?.estimatedCost?.toLocaleString() || 0}</p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Loan Details */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Loan Details</CardTitle>
+                </CardHeader>
+                <CardContent className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Term Length</Label>
+                    <p>{selectedLoan.loanDetails?.preferredTerm || 'N/A'} months</p>
+                  </div>
+                  <div>
+                    <Label>Repayment Method</Label>
+                    <p className="capitalize">
+                      {selectedLoan.loanDetails?.repaymentMethod?.replace('_', ' ') || 'N/A'}
+                    </p>
+                  </div>
+                  {selectedLoan.status === 'approved' && (
+                    <>
+                      <div>
+                        <Label>Approved Amount</Label>
+                        <p className="text-green-600">
+                          ₹{selectedLoan.loanDetails?.approvedAmount?.toLocaleString()}
+                        </p>
+                      </div>
+                      <div>
+                        <Label>Interest Rate</Label>
+                        <p>{selectedLoan.loanDetails?.interestRate || 'N/A'}% p.a.</p>
+                      </div>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 };

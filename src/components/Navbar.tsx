@@ -94,7 +94,8 @@ const Navbar = () => {
   const linkItems = [
     { name: 'Home', to: '/' },
     { name: 'Our Cards', to: '/our-cards' },
-    { name: 'Apply for Loan', to: '/apply-loan' },
+    // Only show Apply Loan for authenticated patients
+    ...(authState.user?.role === 'patient' ? [{ name: 'Apply for Loan', to: '/patient-dashboard?tab=loans' }] : []),
     { name: 'Hospital Registration', to: '/hospital-registration' },
     { name: 'About Us', to: '/about-us' }
   ];

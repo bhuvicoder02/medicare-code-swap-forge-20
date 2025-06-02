@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -10,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
 import { ArrowLeft, ArrowRight, Check, CreditCard, FileText, User, Building, MapPin } from 'lucide-react';
 import { apiRequest } from '@/services/api';
+import { useAuth } from '@/hooks/useAuth';  // Make sure this is at the top with other imports
 
 interface LoanApplicationDialogProps {
   open: boolean;
@@ -19,8 +19,9 @@ interface LoanApplicationDialogProps {
   kycData?: any;
 }
 
-const LoanApplicationDialog = ({ open, onOpenChange, onSuccess, uhid, kycData }: LoanApplicationDialogProps) => {
+const LoanApplicationDialog = ({ open, onOpenChange, onSuccess, uhid }: LoanApplicationDialogProps) => {
   const { toast } = useToast();
+  const { authState } = useAuth(); // Add useAuth hook
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [applicationNumber, setApplicationNumber] = useState('');
@@ -113,26 +114,30 @@ const LoanApplicationDialog = ({ open, onOpenChange, onSuccess, uhid, kycData }:
     'Sign Agreement'
   ];
 
-  // Load KYC data when dialog opens
+  // Load KYC data from authState when dialog opens
   useEffect(() => {
-    if (open && kycData) {
+    if (open && authState.user?.kycData) {
+      const { kycData } = authState.user;
       setFormData(prev => ({
         ...prev,
         personalInfo: {
           ...prev.personalInfo,
-          fullName: `${kycData.firstName || ''} ${kycData.lastName || ''}`.trim(),
+          fullName: `${authState.user?.firstName || ''} ${authState.user?.lastName || ''}`.trim(),
           dateOfBirth: kycData.dateOfBirth || '',
           gender: kycData.gender || '',
+          phoneNumber: authState.user?.phone || '',
+          email: authState.user?.email || '',
           homeAddress: kycData.address || '',
           city: kycData.city || '',
           state: kycData.state || '',
           zipCode: kycData.zipCode || '',
           maritalStatus: kycData.maritalStatus || '',
-          dependents: kycData.dependents || ''
+          dependents: kycData.dependents || '',
+          nationalId: kycData.panNumber || ''
         }
       }));
     }
-  }, [open, kycData]);
+  }, [open, authState.user]);
 
   const handleInputChange = (section: string, field: string, value: any) => {
     setFormData(prev => ({
@@ -253,8 +258,13 @@ const LoanApplicationDialog = ({ open, onOpenChange, onSuccess, uhid, kycData }:
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-green-600">Your KYC is already completed with UHID: {uhid}</p>
-              <p className="text-sm text-gray-600 mt-2">You can proceed with your loan application.</p>
+              <p className="text-green-600">Your KYC is already completed with UHID: {authState.user?.uhid}</p>
+              <div className="mt-4 space-y-2 text-sm text-gray-600">
+                <p>Name: {authState.user?.firstName} {authState.user?.lastName}</p>
+                <p>Email: {authState.user?.email}</p>
+                <p>Phone: {authState.user?.phone}</p>
+                <p>KYC Status: {authState.user?.kycStatus}</p>
+              </div>
             </CardContent>
           </Card>
         );
