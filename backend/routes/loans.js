@@ -1,4 +1,3 @@
-
 const express = require('express');
 const router = express.Router();
 const { check, validationResult } = require('express-validator');
@@ -19,6 +18,24 @@ const getCreditScoreCriteria = (creditScore) => {
   } else {
     return { maxAmount: 0, interestRate: 0 };
   }
+};
+
+// Add this helper function at the top with other helpers
+const checkAndUpdateKycStatus = async (userId) => {
+  const user = await User.findById(userId);
+  if (!user) {
+    throw new Error('User not found');
+  }
+  
+  if (user.kycStatus !== 'completed') {
+    throw new Error('KYC verification must be completed before applying for a loan');
+  }
+  
+  return {
+    uhid: user.uhid,
+    kycData: user.kycData,
+    kycStatus: user.kycStatus
+  };
 };
 
 // @route   GET api/loans
@@ -59,11 +76,9 @@ router.get('/by-uhid/:uhid', auth, async (req, res) => {
 // @access  Private
 router.post('/draft', auth, async (req, res) => {
   try {
-    const user = await User.findById(req.user.id);
-    if (!user || !user.uhid) {
-      return res.status(400).json({ msg: 'User must complete KYC first' });
-    }
-
+    // Check KYC status first
+    const kycInfo = await checkAndUpdateKycStatus(req.user.id);
+    
     const { step, data } = req.body;
 
     // Find existing draft or create new one
@@ -75,9 +90,15 @@ router.post('/draft', auth, async (req, res) => {
     if (!loan) {
       loan = new Loan({
         user: req.user.id,
-        uhid: user.uhid,
-        currentStep: step || 1
+        uhid: kycInfo.uhid,
+        currentStep: step || 1,
+        kycStatus: kycInfo.kycStatus
       });
+    }
+
+    // Sync KYC data if not present
+    if (!loan.kycData && kycInfo.kycData) {
+      loan.kycData = kycInfo.kycData;
     }
 
     // Update loan data based on step
@@ -101,8 +122,8 @@ router.post('/draft', auth, async (req, res) => {
 
     res.json(loan);
   } catch (err) {
-    console.error(err.message);
-    res.status(500).send('Server Error');
+    console.error('Loan draft error:', err.message);
+    res.status(400).json({ msg: err.message });
   }
 });
 
@@ -111,6 +132,9 @@ router.post('/draft', auth, async (req, res) => {
 // @access  Private
 router.post('/submit', auth, async (req, res) => {
   try {
+    // Check KYC status first
+    const kycInfo = await checkAndUpdateKycStatus(req.user.id);
+    
     const {
       personalInfo,
       employmentInfo,
@@ -125,11 +149,6 @@ router.post('/submit', auth, async (req, res) => {
       termsAccepted
     } = req.body;
 
-    const user = await User.findById(req.user.id);
-    if (!user || !user.uhid) {
-      return res.status(400).json({ msg: 'User must complete KYC first' });
-    }
-
     // Find existing draft or create new loan
     let loan = await Loan.findOne({ 
       user: req.user.id, 
@@ -139,9 +158,15 @@ router.post('/submit', auth, async (req, res) => {
     if (!loan) {
       loan = new Loan({
         user: req.user.id,
-        uhid: user.uhid
+        uhid: kycInfo.uhid,
+        kycStatus: kycInfo.kycStatus,
+        kycData: kycInfo.kycData
       });
     }
+
+    // Update KYC related fields
+    loan.kycStatus = kycInfo.kycStatus;
+    loan.kycData = kycInfo.kycData;
 
     // Update all loan data
     loan.personalInfo = personalInfo;
@@ -169,15 +194,14 @@ router.post('/submit', auth, async (req, res) => {
     }
 
     await loan.save();
-
     res.json({
       message: 'Loan application submitted successfully',
       applicationNumber: loan.applicationNumber,
       loan
     });
   } catch (err) {
-    console.error(err.message);
-    res.status(500).send('Server Error');
+    console.error('Loan submission error:', err.message);
+    res.status(400).json({ msg: err.message });
   }
 });
 
