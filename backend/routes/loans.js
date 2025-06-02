@@ -270,4 +270,22 @@ router.get('/credit-score/:panNumber', auth, async (req, res) => {
   }
 });
 
+// @route   GET api/loans/draft/current
+// @desc    Get current draft loan for user
+// @access  Private
+router.get('/draft/current', auth, async (req, res) => {
+  try {
+    const loan = await Loan.findOne({ 
+      user: req.user.id, 
+      status: 'draft',
+      submissionDate: { $exists: false }
+    });
+    
+    res.json({ loan });
+  } catch (err) {
+    console.error('Error fetching draft loan:', err.message);
+    res.status(500).json({ msg: 'Server Error' });
+  }
+});
+
 module.exports = router;
