@@ -8,8 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
 import { ArrowLeft, ArrowRight, Check, CreditCard, FileText, User, Building, MapPin } from 'lucide-react';
-import { apiRequest } from '@/services/api';
-import { useAuth } from '@/hooks/useAuth';  // Make sure this is at the top with other imports
+import { useAuth } from '@/hooks/useAuth';
+import { saveLoanDraft, submitLoanApplication, getCreditScore, LoanData } from '@/services/loanService';
 
 interface LoanApplicationDialogProps {
   open: boolean;
@@ -17,11 +17,12 @@ interface LoanApplicationDialogProps {
   onSuccess: () => void;
   uhid: string;
   kycData?: any;
+  existingLoan?: LoanData | null;
 }
 
-const LoanApplicationDialog = ({ open, onOpenChange, onSuccess, uhid }: LoanApplicationDialogProps) => {
+const LoanApplicationDialog = ({ open, onOpenChange, onSuccess, uhid, existingLoan }: LoanApplicationDialogProps) => {
   const { toast } = useToast();
-  const { authState } = useAuth(); // Add useAuth hook
+  const { authState } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [applicationNumber, setApplicationNumber] = useState('');
@@ -114,30 +115,69 @@ const LoanApplicationDialog = ({ open, onOpenChange, onSuccess, uhid }: LoanAppl
     'Sign Agreement'
   ];
 
-  // Load KYC data from authState when dialog opens
+  // Load existing loan data or KYC data when dialog opens
   useEffect(() => {
-    if (open && authState.user?.kycData) {
-      const { kycData } = authState.user;
-      setFormData(prev => ({
-        ...prev,
-        personalInfo: {
-          ...prev.personalInfo,
-          fullName: `${authState.user?.firstName || ''} ${authState.user?.lastName || ''}`.trim(),
-          dateOfBirth: kycData.dateOfBirth || '',
-          gender: kycData.gender || '',
-          phoneNumber: authState.user?.phone || '',
-          email: authState.user?.email || '',
-          homeAddress: kycData.address || '',
-          city: kycData.city || '',
-          state: kycData.state || '',
-          zipCode: kycData.zipCode || '',
-          maritalStatus: kycData.maritalStatus || '',
-          dependents: kycData.dependents || '',
-          nationalId: kycData.panNumber || ''
-        }
-      }));
+    if (open) {
+      if (existingLoan) {
+        // Resume existing loan
+        loadExistingLoanData();
+      } else if (authState.user?.kycData) {
+        // New loan with KYC data
+        loadKycData();
+      }
     }
-  }, [open, authState.user]);
+  }, [open, existingLoan, authState.user]);
+
+  const loadExistingLoanData = () => {
+    if (!existingLoan) return;
+
+    console.log('Loading existing loan data:', existingLoan);
+    
+    setFormData({
+      personalInfo: existingLoan.personalInfo || formData.personalInfo,
+      employmentInfo: existingLoan.employmentInfo || formData.employmentInfo,
+      medicalInfo: existingLoan.medicalInfo || formData.medicalInfo,
+      loanDetails: existingLoan.loanDetails || formData.loanDetails,
+      documents: existingLoan.documents || formData.documents,
+      transactionId: existingLoan.transactionId || '',
+      agreementSigned: existingLoan.agreementSigned || false,
+      nachMandateSigned: existingLoan.nachMandateSigned || false,
+      termsAccepted: existingLoan.termsAccepted || false
+    });
+
+    if (existingLoan.creditScore) {
+      setCreditScore(existingLoan.creditScore);
+      setMaxEligibleAmount(existingLoan.maxEligibleAmount || 0);
+      setInterestRate(existingLoan.loanDetails?.interestRate || 0);
+    }
+
+    setCurrentStep(existingLoan.currentStep || 1);
+    setApplicationNumber(existingLoan.applicationNumber);
+  };
+
+  const loadKycData = () => {
+    const { kycData } = authState.user || {};
+    if (!kycData) return;
+
+    setFormData(prev => ({
+      ...prev,
+      personalInfo: {
+        ...prev.personalInfo,
+        fullName: `${authState.user?.firstName || ''} ${authState.user?.lastName || ''}`.trim(),
+        dateOfBirth: kycData.dateOfBirth || '',
+        gender: kycData.gender || '',
+        phoneNumber: authState.user?.phone || '',
+        email: authState.user?.email || '',
+        homeAddress: kycData.address || '',
+        city: kycData.city || '',
+        state: kycData.state || '',
+        zipCode: kycData.zipCode || '',
+        maritalStatus: kycData.maritalStatus || '',
+        dependents: kycData.dependents || '',
+        nationalId: kycData.panNumber || ''
+      }
+    }));
+  };
 
   const handleInputChange = (section: string, field: string, value: any) => {
     setFormData(prev => ({
@@ -151,15 +191,15 @@ const LoanApplicationDialog = ({ open, onOpenChange, onSuccess, uhid }: LoanAppl
 
   const saveDraft = async (step: number) => {
     try {
-      await apiRequest('/loans/draft', {
-        method: 'POST',
-        body: JSON.stringify({
-          step,
-          data: formData
-        })
-      });
+      console.log('Saving draft at step:', step);
+      await saveLoanDraft(step, formData);
     } catch (error) {
       console.error('Failed to save draft:', error);
+      toast({
+        title: "Draft Save Failed",
+        description: "Your progress may not be saved",
+        variant: "destructive"
+      });
     }
   };
 
@@ -171,9 +211,9 @@ const LoanApplicationDialog = ({ open, onOpenChange, onSuccess, uhid }: LoanAppl
       // Save personal details and get credit score
       await saveDraft(2);
       
-      if (formData.personalInfo.nationalId) {
+      if (formData.personalInfo.nationalId && !creditScore) {
         try {
-          const response = await apiRequest(`/loans/credit-score/${formData.personalInfo.nationalId}`);
+          const response = await getCreditScore(formData.personalInfo.nationalId);
           setCreditScore(response.creditScore);
           setMaxEligibleAmount(response.maxEligibleAmount);
           setInterestRate(response.interestRate);
@@ -221,11 +261,7 @@ const LoanApplicationDialog = ({ open, onOpenChange, onSuccess, uhid }: LoanAppl
     setIsSubmitting(true);
     
     try {
-      const response = await apiRequest('/loans/submit', {
-        method: 'POST',
-        body: JSON.stringify(formData)
-      });
-
+      const response = await submitLoanApplication(formData);
       setApplicationNumber(response.applicationNumber);
       
       toast({
@@ -244,6 +280,14 @@ const LoanApplicationDialog = ({ open, onOpenChange, onSuccess, uhid }: LoanAppl
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleClose = () => {
+    // Save draft before closing if not submitted
+    if (currentStep > 1 && !formData.transactionId) {
+      saveDraft(currentStep);
+    }
+    onOpenChange(false);
   };
 
   const renderStepContent = () => {
@@ -265,6 +309,12 @@ const LoanApplicationDialog = ({ open, onOpenChange, onSuccess, uhid }: LoanAppl
                 <p>Phone: {authState.user?.phone}</p>
                 <p>KYC Status: {authState.user?.kycStatus}</p>
               </div>
+              {existingLoan && (
+                <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+                  <p className="text-blue-800 font-medium">Resuming Application: {existingLoan.applicationNumber}</p>
+                  <p className="text-sm text-blue-600">Continue from Step {existingLoan.currentStep || 1}</p>
+                </div>
+              )}
             </CardContent>
           </Card>
         );
@@ -605,10 +655,12 @@ const LoanApplicationDialog = ({ open, onOpenChange, onSuccess, uhid }: LoanAppl
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Medical Loan Application</DialogTitle>
+          <DialogTitle>
+            {existingLoan ? `Resume Loan Application - ${existingLoan.applicationNumber}` : 'Medical Loan Application'}
+          </DialogTitle>
         </DialogHeader>
 
         {/* Step Progress */}

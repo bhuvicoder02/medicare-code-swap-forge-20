@@ -1,9 +1,10 @@
+
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { CreditCard, Plus, FileText, AlertCircle, Check } from 'lucide-react';
+import { CreditCard, Plus, FileText, AlertCircle, Check, PlayCircle, Edit } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { fetchPatientLoans, LoanData } from '@/services/loanService';
@@ -24,6 +25,7 @@ const MyLoans = () => {
   const [showLoanApplication, setShowLoanApplication] = useState(false);
   const [showLoanDetails, setShowLoanDetails] = useState(false);
   const [selectedLoan, setSelectedLoan] = useState<LoanData | null>(null);
+  const [resumingLoan, setResumingLoan] = useState<LoanData | null>(null);
 
   useEffect(() => {
     if (authState.user) {
@@ -75,6 +77,7 @@ const MyLoans = () => {
       fetchLoans(uhid);
     }
     setShowLoanApplication(false);
+    setResumingLoan(null);
     toast({
       title: "Application Submitted",
       description: "Your loan application has been submitted successfully",
@@ -86,14 +89,31 @@ const MyLoans = () => {
     setShowLoanDetails(true);
   };
 
+  const handleResumeLoan = (loan: LoanData) => {
+    setResumingLoan(loan);
+    setShowLoanApplication(true);
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'approved': return 'bg-green-100 text-green-800';
       case 'rejected': return 'bg-red-100 text-red-800';
       case 'under_review': return 'bg-yellow-100 text-yellow-800';
       case 'submitted': return 'bg-blue-100 text-blue-800';
+      case 'draft': return 'bg-gray-100 text-gray-800';
       default: return 'bg-gray-100 text-gray-800';
     }
+  };
+
+  const getStatusText = (loan: LoanData) => {
+    if (loan.status === 'draft') {
+      return `DRAFT (Step ${loan.currentStep || 1})`;
+    }
+    return loan.status.replace('_', ' ').toUpperCase();
+  };
+
+  const isDraftLoan = (loan: LoanData) => {
+    return loan.status === 'draft' || (!loan.submissionDate && !loan.transactionId);
   };
 
   if (loading) {
@@ -127,6 +147,10 @@ const MyLoans = () => {
     );
   }
 
+  // Separate loans into drafts and submitted
+  const draftLoans = loans.filter(isDraftLoan);
+  const submittedLoans = loans.filter(loan => !isDraftLoan(loan));
+
   return (
     <div className="space-y-6">
       {/* KYC Status Card */}
@@ -148,19 +172,19 @@ const MyLoans = () => {
         </CardContent>
       </Card>
 
-      {/* Loans List */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <CreditCard className="h-5 w-5" />
-            My Loans
-          </CardTitle>
-          <CardDescription>
-            Track your loan applications and manage existing loans
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {loans.length > 0 ? (
+      {/* Draft Loans */}
+      {draftLoans.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Edit className="h-5 w-5" />
+              Draft Applications
+            </CardTitle>
+            <CardDescription>
+              Complete your pending loan applications
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -168,12 +192,82 @@ const MyLoans = () => {
                   <TableHead>Treatment</TableHead>
                   <TableHead>Amount</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Applied Date</TableHead>
+                  <TableHead>Created Date</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {loans.map((loan) => (
+                {draftLoans.map((loan) => (
+                  <TableRow key={loan._id}>
+                    <TableCell className="font-mono text-sm">
+                      {loan.applicationNumber}
+                    </TableCell>
+                    <TableCell>{loan.medicalInfo?.treatmentRequired || 'N/A'}</TableCell>
+                    <TableCell>
+                      ₹{loan.loanDetails?.requestedAmount?.toLocaleString() || 0}
+                    </TableCell>
+                    <TableCell>
+                      <Badge className={getStatusColor(loan.status)}>
+                        {getStatusText(loan)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {new Date(loan.applicationDate).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-2">
+                        <Button 
+                          variant="default" 
+                          size="sm"
+                          onClick={() => handleResumeLoan(loan)}
+                        >
+                          <PlayCircle className="h-4 w-4 mr-1" />
+                          Continue
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleViewDetails(loan)}
+                        >
+                          <FileText className="h-4 w-4 mr-1" />
+                          View Details
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Submitted Loans */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CreditCard className="h-5 w-5" />
+            My Loan Applications
+          </CardTitle>
+          <CardDescription>
+            Track your submitted loan applications and manage existing loans
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {submittedLoans.length > 0 ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Application No.</TableHead>
+                  <TableHead>Treatment</TableHead>
+                  <TableHead>Amount</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Submitted Date</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {submittedLoans.map((loan) => (
                   <TableRow key={loan._id}>
                     <TableCell className="font-mono text-sm">
                       {loan.applicationNumber}
@@ -189,11 +283,11 @@ const MyLoans = () => {
                     </TableCell>
                     <TableCell>
                       <Badge className={getStatusColor(loan.status)}>
-                        {loan.status.replace('_', ' ').toUpperCase()}
+                        {getStatusText(loan)}
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      {new Date(loan.applicationDate).toLocaleDateString()}
+                      {loan.submissionDate ? new Date(loan.submissionDate).toLocaleDateString() : 'N/A'}
                     </TableCell>
                     <TableCell>
                       <Button 
@@ -211,7 +305,7 @@ const MyLoans = () => {
             </Table>
           ) : (
             <div className="text-center py-8">
-              <p className="text-gray-500 mb-4">No loan applications found</p>
+              <p className="text-gray-500 mb-4">No submitted loan applications found</p>
               <Button onClick={() => setShowLoanApplication(true)}>
                 <Plus className="h-4 w-4 mr-2" />
                 Apply for Your First Loan
@@ -228,6 +322,7 @@ const MyLoans = () => {
         onSuccess={handleLoanApplicationSuccess}
         uhid={uhid}
         kycData={kycData}
+        existingLoan={resumingLoan}
       />
 
       {/* Loan Details Dialog */}
@@ -252,17 +347,29 @@ const MyLoans = () => {
                   <div>
                     <Label>Status</Label>
                     <Badge className={getStatusColor(selectedLoan.status)}>
-                      {selectedLoan.status.replace('_', ' ').toUpperCase()}
+                      {getStatusText(selectedLoan)}
                     </Badge>
                   </div>
                   <div>
-                    <Label>Applied Date</Label>
+                    <Label>Created Date</Label>
                     <p>{new Date(selectedLoan.applicationDate).toLocaleDateString()}</p>
                   </div>
                   <div>
                     <Label>Requested Amount</Label>
                     <p>₹{selectedLoan.loanDetails?.requestedAmount?.toLocaleString()}</p>
                   </div>
+                  {selectedLoan.submissionDate && (
+                    <div>
+                      <Label>Submitted Date</Label>
+                      <p>{new Date(selectedLoan.submissionDate).toLocaleDateString()}</p>
+                    </div>
+                  )}
+                  {selectedLoan.transactionId && (
+                    <div>
+                      <Label>Transaction ID</Label>
+                      <p className="font-mono">{selectedLoan.transactionId}</p>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
@@ -278,7 +385,7 @@ const MyLoans = () => {
                   </div>
                   <div>
                     <Label>Medical Provider</Label>
-                    <p>{selectedLoan.medicalInfo?.medicalProvider || 'N/A'}</p>
+                    <p>{selectedLoan.medicalInfo?.medicalProvider || selectedLoan.loanDetails?.hospitalName || 'N/A'}</p>
                   </div>
                   <div>
                     <Label>Estimated Cost</Label>
@@ -316,6 +423,12 @@ const MyLoans = () => {
                         <p>{selectedLoan.loanDetails?.interestRate || 'N/A'}% p.a.</p>
                       </div>
                     </>
+                  )}
+                  {selectedLoan.rejectionReason && (
+                    <div className="col-span-2">
+                      <Label>Rejection Reason</Label>
+                      <p className="text-red-600">{selectedLoan.rejectionReason}</p>
+                    </div>
                   )}
                 </CardContent>
               </Card>
