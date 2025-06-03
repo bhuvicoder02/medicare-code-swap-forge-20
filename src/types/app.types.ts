@@ -33,7 +33,12 @@ export interface Hospital {
   accreditations?: string[];
   logo?: string;
   website?: string;
+  description?: string;
+  establishedYear?: number;
+  facilities?: string[];
+  emergencyServices?: boolean;
   user?: string;
+  date?: string;
 }
 
 export interface Doctor {

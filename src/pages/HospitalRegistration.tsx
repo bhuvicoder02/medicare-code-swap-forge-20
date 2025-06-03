@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -30,7 +29,7 @@ const HospitalRegistration = () => {
     contactPhone: '',
     specialties: [] as string[],
     services: [] as string[],
-    hospitalType: 'private',
+    hospitalType: 'private' as 'government' | 'private' | 'nonprofit',
     bedCount: '',
     registrationNumber: '',
     website: '',
@@ -60,7 +59,11 @@ const HospitalRegistration = () => {
   };
 
   const handleSelectChange = (name: string, value: string) => {
-    setFormData(prev => ({ ...prev, [name]: value }));
+    if (name === 'hospitalType') {
+      setFormData(prev => ({ ...prev, [name]: value as 'government' | 'private' | 'nonprofit' }));
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
   };
 
   const handleArrayChange = (name: 'specialties' | 'services', value: string, checked: boolean) => {

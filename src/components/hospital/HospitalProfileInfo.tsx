@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Building, MapPin, Phone, Mail, Globe, Edit, Users, TrendingUp } from "lucide-react";
+import { Building, MapPin, Phone, Mail, Globe, Edit, Users, TrendingUp, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { getAllHospitals, getHospitalAnalytics } from "@/services/hospitalService";
 import { useAuth } from "@/hooks/useAuth";
