@@ -1,10 +1,16 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Hospital, Check, X, Edit, Search } from "lucide-react";
-import { toast } from "@/hooks/use-toast";
+import { Hospital, Check, X, Edit, Search, Eye, Building } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
+import { getAllHospitals, updateHospitalStatus, getHospitalAnalytics } from "@/services/hospitalService";
+import { Hospital as HospitalType } from '@/types/app.types';
 import {
   Dialog,
   DialogContent,
@@ -14,137 +20,144 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 
 const HospitalManagement = () => {
-  // Mock data
-  const [pendingHospitals, setPendingHospitals] = useState([
-    {
-      id: "HSP12345",
-      name: "City General Hospital",
-      location: "Mumbai, Maharashtra",
-      contactPerson: "Dr. Rajesh Kumar",
-      phone: "9876543210",
-      email: "info@citygeneralhospital.com",
-      services: ["General", "Cardiology", "Orthopedics", "Neurology"],
-      registrationDate: "22/11/2023",
-      status: "Pending"
-    },
-    {
-      id: "HSP12346",
-      name: "Wellness Multispecialty Hospital",
-      location: "Delhi, Delhi",
-      contactPerson: "Dr. Priya Sharma",
-      phone: "9876543211",
-      email: "contact@wellnesshospital.com",
-      services: ["General", "Gynecology", "Pediatrics", "ENT"],
-      registrationDate: "21/11/2023",
-      status: "Pending"
-    },
-    {
-      id: "HSP12347",
-      name: "LifeCare Medical Center",
-      location: "Bangalore, Karnataka",
-      contactPerson: "Dr. Anand Reddy",
-      phone: "9876543212",
-      email: "info@lifecaremedical.com",
-      services: ["General", "Oncology", "Cardiology", "Dermatology"],
-      registrationDate: "20/11/2023",
-      status: "Pending"
-    },
-  ]);
-
-  const [activeHospitals, setActiveHospitals] = useState([
-    {
-      id: "HSP12340",
-      name: "Apollo Hospitals",
-      location: "Chennai, Tamil Nadu",
-      contactPerson: "Dr. Sudha Rao",
-      phone: "9876543200",
-      email: "contact@apollohospitals.com",
-      services: ["General", "Cardiology", "Neurology", "Gastroenterology"],
-      registrationDate: "15/10/2023",
-      status: "Active",
-      totalPatients: 2450,
-      totalTransactions: "₹32,50,000",
-      currentBalance: "₹1,75,000",
-    },
-    {
-      id: "HSP12341",
-      name: "Fortis Healthcare",
-      location: "Gurgaon, Haryana",
-      contactPerson: "Dr. Vikram Mehta",
-      phone: "9876543201",
-      email: "info@fortishealthcare.com",
-      services: ["General", "Orthopedics", "Cardiology", "Oncology"],
-      registrationDate: "10/10/2023",
-      status: "Active",
-      totalPatients: 1850,
-      totalTransactions: "₹28,75,000",
-      currentBalance: "₹1,25,000",
-    },
-  ]);
-
-  const [selectedHospital, setSelectedHospital] = useState(null);
+  const { toast } = useToast();
+  const [hospitals, setHospitals] = useState<HospitalType[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedHospital, setSelectedHospital] = useState<HospitalType | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [hospitalAnalytics, setHospitalAnalytics] = useState<any>(null);
 
-  const handleViewHospital = (hospital) => {
+  useEffect(() => {
+    fetchHospitals();
+  }, []);
+
+  const fetchHospitals = async () => {
+    try {
+      setLoading(true);
+      const hospitalsData = await getAllHospitals();
+      setHospitals(hospitalsData);
+    } catch (error) {
+      console.error('Failed to fetch hospitals:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch hospitals. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchHospitalAnalytics = async (hospitalId: string) => {
+    try {
+      const analytics = await getHospitalAnalytics(hospitalId);
+      setHospitalAnalytics(analytics);
+    } catch (error) {
+      console.error('Failed to fetch hospital analytics:', error);
+    }
+  };
+
+  const handleViewHospital = (hospital: HospitalType) => {
     setSelectedHospital(hospital);
+    if (hospital.id) {
+      fetchHospitalAnalytics(hospital.id);
+    }
   };
 
-  const handleApproveHospital = () => {
-    toast({
-      title: "Hospital Approved",
-      description: `${selectedHospital.name} has been approved successfully.`,
-    });
-    
-    // Update the pending hospitals list
-    setPendingHospitals(pendingHospitals.filter(hospital => hospital.id !== selectedHospital.id));
-    
-    // Add to active hospitals
-    setActiveHospitals([
-      {
-        ...selectedHospital,
-        status: "Active",
-        totalPatients: 0,
-        totalTransactions: "₹0",
-        currentBalance: "₹0",
-      },
-      ...activeHospitals
-    ]);
-    
-    setSelectedHospital(null);
+  const handleUpdateStatus = async (hospitalId: string, status: 'active' | 'pending' | 'inactive') => {
+    try {
+      await updateHospitalStatus(hospitalId, status);
+      
+      toast({
+        title: "Status Updated",
+        description: `Hospital status has been updated to ${status}.`,
+      });
+      
+      // Update the hospitals list
+      setHospitals(hospitals.map(h => 
+        h.id === hospitalId ? { ...h, status } : h
+      ));
+      
+      setSelectedHospital(null);
+      setHospitalAnalytics(null);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update hospital status.",
+        variant: "destructive"
+      });
+    }
   };
 
-  const handleRejectHospital = () => {
-    toast({
-      title: "Hospital Rejected",
-      description: `${selectedHospital.name}'s registration has been rejected.`,
-    });
+  const getStatusBadge = (status: string) => {
+    const statusConfig = {
+      'active': { className: 'bg-green-100 text-green-800', label: 'Active' },
+      'pending': { className: 'bg-yellow-100 text-yellow-800', label: 'Pending' },
+      'inactive': { className: 'bg-red-100 text-red-800', label: 'Inactive' }
+    };
     
-    // Update the pending hospitals list
-    setPendingHospitals(pendingHospitals.filter(hospital => hospital.id !== selectedHospital.id));
-    setSelectedHospital(null);
+    const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.pending;
+    
+    return (
+      <Badge className={config.className}>
+        {config.label}
+      </Badge>
+    );
   };
 
+  const pendingHospitals = hospitals.filter(h => h.status === 'pending');
+  const activeHospitals = hospitals.filter(h => h.status === 'active');
+  
   const filteredActiveHospitals = activeHospitals.filter(
     hospital => 
-      hospital.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      hospital.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      hospital.id.toLowerCase().includes(searchTerm.toLowerCase())
+      hospital.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      hospital.city?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      hospital.state?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Loading Hospitals...</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="flex items-center space-x-4">
+                  <Skeleton className="h-12 w-12 rounded-full" />
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-[250px]" />
+                    <Skeleton className="h-4 w-[200px]" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
+      {/* Pending Hospitals */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>Pending Hospital Registrations</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <Building className="h-5 w-5" />
+                Pending Hospital Registrations
+              </CardTitle>
               <CardDescription>Review and process hospital registration requests</CardDescription>
             </div>
-            <Hospital className="h-8 w-8 text-primary" />
+            <Badge variant="outline" className="text-lg px-3 py-1">
+              {pendingHospitals.length} Pending
+            </Badge>
           </div>
         </CardHeader>
         <CardContent>
@@ -152,7 +165,6 @@ const HospitalManagement = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Hospital ID</TableHead>
                   <TableHead>Hospital Name</TableHead>
                   <TableHead>Location</TableHead>
                   <TableHead>Contact Person</TableHead>
@@ -164,16 +176,11 @@ const HospitalManagement = () => {
               <TableBody>
                 {pendingHospitals.map((hospital) => (
                   <TableRow key={hospital.id}>
-                    <TableCell className="font-medium">{hospital.id}</TableCell>
-                    <TableCell>{hospital.name}</TableCell>
-                    <TableCell>{hospital.location}</TableCell>
+                    <TableCell className="font-medium">{hospital.name}</TableCell>
+                    <TableCell>{hospital.city}, {hospital.state}</TableCell>
                     <TableCell>{hospital.contactPerson}</TableCell>
-                    <TableCell>{hospital.registrationDate}</TableCell>
-                    <TableCell>
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                        {hospital.status}
-                      </span>
-                    </TableCell>
+                    <TableCell>{new Date(hospital.date || '').toLocaleDateString()}</TableCell>
+                    <TableCell>{getStatusBadge(hospital.status)}</TableCell>
                     <TableCell>
                       <Dialog>
                         <DialogTrigger asChild>
@@ -182,12 +189,13 @@ const HospitalManagement = () => {
                             size="sm"
                             onClick={() => handleViewHospital(hospital)}
                           >
+                            <Eye className="h-4 w-4 mr-1" />
                             Review
                           </Button>
                         </DialogTrigger>
                         
                         {selectedHospital && selectedHospital.id === hospital.id && (
-                          <DialogContent className="sm:max-w-[600px]">
+                          <DialogContent className="sm:max-w-[800px] max-h-[80vh] overflow-y-auto">
                             <DialogHeader>
                               <DialogTitle>Hospital Registration Review</DialogTitle>
                               <DialogDescription>
@@ -195,85 +203,105 @@ const HospitalManagement = () => {
                               </DialogDescription>
                             </DialogHeader>
                             
-                            <div className="grid gap-4 py-4">
+                            <div className="grid gap-6 py-4">
+                              {/* Basic Information */}
                               <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                  <Label htmlFor="hospitalName">Hospital Name</Label>
-                                  <Input 
-                                    id="hospitalName" 
-                                    value={selectedHospital.name} 
-                                    readOnly 
-                                  />
+                                  <Label>Hospital Name</Label>
+                                  <p className="text-sm font-medium">{selectedHospital.name}</p>
                                 </div>
                                 <div>
-                                  <Label htmlFor="hospitalId">Hospital ID</Label>
-                                  <Input 
-                                    id="hospitalId" 
-                                    value={selectedHospital.id} 
-                                    readOnly 
-                                  />
+                                  <Label>Hospital Type</Label>
+                                  <p className="text-sm font-medium capitalize">{selectedHospital.hospitalType}</p>
                                 </div>
                               </div>
                               
                               <div>
-                                <Label htmlFor="location">Location</Label>
-                                <Input 
-                                  id="location" 
-                                  value={selectedHospital.location} 
-                                  readOnly 
-                                />
+                                <Label>Address</Label>
+                                <p className="text-sm">{selectedHospital.address}</p>
+                                <p className="text-sm">{selectedHospital.city}, {selectedHospital.state} - {selectedHospital.zipCode}</p>
+                              </div>
+                              
+                              {/* Contact Information */}
+                              <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                  <Label>Contact Person</Label>
+                                  <p className="text-sm font-medium">{selectedHospital.contactPerson}</p>
+                                </div>
+                                <div>
+                                  <Label>Phone Number</Label>
+                                  <p className="text-sm">{selectedHospital.contactPhone}</p>
+                                </div>
                               </div>
                               
                               <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                  <Label htmlFor="contactPerson">Contact Person</Label>
-                                  <Input 
-                                    id="contactPerson" 
-                                    value={selectedHospital.contactPerson} 
-                                    readOnly 
-                                  />
+                                  <Label>Email Address</Label>
+                                  <p className="text-sm">{selectedHospital.contactEmail}</p>
                                 </div>
                                 <div>
-                                  <Label htmlFor="phone">Phone Number</Label>
-                                  <Input 
-                                    id="phone" 
-                                    value={selectedHospital.phone} 
-                                    readOnly 
-                                  />
+                                  <Label>Website</Label>
+                                  <p className="text-sm">{selectedHospital.website || 'Not provided'}</p>
+                                </div>
+                              </div>
+
+                              {/* Additional Details */}
+                              <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                  <Label>Registration Number</Label>
+                                  <p className="text-sm">{selectedHospital.registrationNumber || 'Not provided'}</p>
+                                </div>
+                                <div>
+                                  <Label>Bed Count</Label>
+                                  <p className="text-sm">{selectedHospital.bedCount || 'Not specified'}</p>
                                 </div>
                               </div>
                               
-                              <div>
-                                <Label htmlFor="email">Email Address</Label>
-                                <Input 
-                                  id="email" 
-                                  value={selectedHospital.email} 
-                                  readOnly 
-                                />
-                              </div>
-                              
-                              <div>
-                                <Label htmlFor="services">Services Offered</Label>
-                                <div id="services" className="flex flex-wrap gap-2 mt-2">
-                                  {selectedHospital.services.map((service, index) => (
-                                    <span 
-                                      key={index} 
-                                      className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
-                                    >
-                                      {service}
-                                    </span>
-                                  ))}
+                              {/* Specialties and Services */}
+                              {selectedHospital.specialties && selectedHospital.specialties.length > 0 && (
+                                <div>
+                                  <Label>Specialties</Label>
+                                  <div className="flex flex-wrap gap-2 mt-2">
+                                    {selectedHospital.specialties.map((specialty, index) => (
+                                      <Badge key={index} variant="secondary">{specialty}</Badge>
+                                    ))}
+                                  </div>
                                 </div>
-                              </div>
+                              )}
+
+                              {selectedHospital.services && selectedHospital.services.length > 0 && (
+                                <div>
+                                  <Label>Services</Label>
+                                  <div className="flex flex-wrap gap-2 mt-2">
+                                    {selectedHospital.services.map((service, index) => (
+                                      <Badge key={index} variant="outline">{service}</Badge>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {selectedHospital.description && (
+                                <div>
+                                  <Label>Description</Label>
+                                  <p className="text-sm">{selectedHospital.description}</p>
+                                </div>
+                              )}
                             </div>
                             
                             <DialogFooter>
                               <div className="flex gap-2 w-full">
-                                <Button variant="outline" className="flex-1" onClick={handleRejectHospital}>
+                                <Button 
+                                  variant="outline" 
+                                  className="flex-1" 
+                                  onClick={() => handleUpdateStatus(selectedHospital.id!, 'inactive')}
+                                >
                                   <X className="mr-2 h-4 w-4" />
                                   Reject
                                 </Button>
-                                <Button className="flex-1" onClick={handleApproveHospital}>
+                                <Button 
+                                  className="flex-1" 
+                                  onClick={() => handleUpdateStatus(selectedHospital.id!, 'active')}
+                                >
                                   <Check className="mr-2 h-4 w-4" />
                                   Approve
                                 </Button>
@@ -295,6 +323,7 @@ const HospitalManagement = () => {
         </CardContent>
       </Card>
 
+      {/* Active Hospitals */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -317,12 +346,10 @@ const HospitalManagement = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Hospital ID</TableHead>
                   <TableHead>Hospital Name</TableHead>
                   <TableHead>Location</TableHead>
-                  <TableHead>Total Patients</TableHead>
-                  <TableHead>Total Transactions</TableHead>
-                  <TableHead>Current Balance</TableHead>
+                  <TableHead>Contact Person</TableHead>
+                  <TableHead>Type</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
@@ -330,21 +357,30 @@ const HospitalManagement = () => {
               <TableBody>
                 {filteredActiveHospitals.map((hospital) => (
                   <TableRow key={hospital.id}>
-                    <TableCell className="font-medium">{hospital.id}</TableCell>
-                    <TableCell>{hospital.name}</TableCell>
-                    <TableCell>{hospital.location}</TableCell>
-                    <TableCell>{hospital.totalPatients}</TableCell>
-                    <TableCell>{hospital.totalTransactions}</TableCell>
-                    <TableCell>{hospital.currentBalance}</TableCell>
+                    <TableCell className="font-medium">{hospital.name}</TableCell>
+                    <TableCell>{hospital.city}, {hospital.state}</TableCell>
+                    <TableCell>{hospital.contactPerson}</TableCell>
+                    <TableCell className="capitalize">{hospital.hospitalType}</TableCell>
+                    <TableCell>{getStatusBadge(hospital.status)}</TableCell>
                     <TableCell>
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                        {hospital.status}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <Button variant="outline" size="sm">
-                        <Edit className="h-4 w-4 mr-1" /> Manage
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleViewHospital(hospital)}
+                        >
+                          <Eye className="h-4 w-4 mr-1" />
+                          View
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleUpdateStatus(hospital.id!, 'inactive')}
+                        >
+                          <X className="h-4 w-4 mr-1" />
+                          Deactivate
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -352,12 +388,18 @@ const HospitalManagement = () => {
             </Table>
           ) : (
             <div className="text-center py-6">
-              <p className="text-muted-foreground">No hospitals found matching your search criteria</p>
+              <p className="text-muted-foreground">
+                {searchTerm ? 'No hospitals found matching your search criteria' : 'No active hospitals found'}
+              </p>
             </div>
           )}
         </CardContent>
         <CardFooter>
-          <Button variant="outline" className="ml-auto">View All Hospitals</Button>
+          <div className="flex justify-between items-center w-full">
+            <p className="text-sm text-muted-foreground">
+              Showing {filteredActiveHospitals.length} of {activeHospitals.length} active hospitals
+            </p>
+          </div>
         </CardFooter>
       </Card>
     </div>

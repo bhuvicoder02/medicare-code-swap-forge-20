@@ -5,18 +5,19 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/hooks/useAuth';
-import axios from 'axios';
+import { registerHospital } from '@/services/hospitalService';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 
 const HospitalRegistration = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { authState, signIn } = useAuth();
+  const { authState } = useAuth();
 
   const [formData, setFormData] = useState({
     name: '',
@@ -27,14 +28,31 @@ const HospitalRegistration = () => {
     contactPerson: '',
     contactEmail: '',
     contactPhone: '',
-    specialties: [],
+    specialties: [] as string[],
+    services: [] as string[],
     hospitalType: 'private',
-    bedCount: 0,
+    bedCount: '',
     registrationNumber: '',
+    website: '',
+    description: '',
+    establishedYear: '',
+    emergencyServices: true
   });
 
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+
+  const specialtyOptions = [
+    'Cardiology', 'Neurology', 'Orthopedics', 'Pediatrics', 'Gynecology',
+    'Dermatology', 'Psychiatry', 'Radiology', 'Pathology', 'General Medicine',
+    'Surgery', 'Emergency Medicine', 'Anesthesiology', 'Oncology'
+  ];
+
+  const serviceOptions = [
+    'Emergency Services', 'ICU', 'Operation Theater', 'Diagnostic Services',
+    'Pharmacy', 'Blood Bank', 'Physiotherapy', 'Dialysis', 'Ambulance',
+    'Laboratory', 'Radiology', 'Cafeteria', 'Parking'
+  ];
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -45,10 +63,13 @@ const HospitalRegistration = () => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleMultiSelectChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    const values = value.split(',').map(item => item.trim());
-    setFormData(prev => ({ ...prev, [name]: values }));
+  const handleArrayChange = (name: 'specialties' | 'services', value: string, checked: boolean) => {
+    setFormData(prev => ({
+      ...prev,
+      [name]: checked 
+        ? [...prev[name], value]
+        : prev[name].filter(item => item !== value)
+    }));
   };
 
   const nextStep = () => {
@@ -57,6 +78,16 @@ const HospitalRegistration = () => {
         toast({
           title: "Validation Error",
           description: "Please fill out all required fields",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+    if (step === 2) {
+      if (!formData.contactPerson || !formData.contactEmail || !formData.contactPhone) {
+        toast({
+          title: "Validation Error",
+          description: "Please fill out all contact information",
           variant: "destructive",
         });
         return;
@@ -74,29 +105,30 @@ const HospitalRegistration = () => {
     setLoading(true);
 
     try {
-      const response = await axios.post(
-        'https://rimedicare-phase1.onrender.com/api/hospitals',
-        formData,
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': authState?.user ? `Bearer ${localStorage.getItem('token')}` : '',
-          },
-        }
-      );
+      const hospitalData = {
+        ...formData,
+        bedCount: parseInt(formData.bedCount) || 0,
+        establishedYear: parseInt(formData.establishedYear) || undefined
+      };
+
+      const response = await registerHospital(hospitalData);
 
       toast({
         title: "Registration Successful",
-        description: "Your hospital has been registered successfully! You can now login to manage your hospital.",
+        description: "Your hospital has been registered successfully! Your registration is pending approval.",
       });
 
-      // Redirect to login after successful registration
-      navigate('/login');
-    } catch (error) {
+      // Redirect to dashboard or login
+      if (authState.user?.role === 'hospital') {
+        navigate('/hospital-dashboard');
+      } else {
+        navigate('/login');
+      }
+    } catch (error: any) {
       console.error('Hospital registration error:', error);
       toast({
         title: "Registration Failed",
-        description: "There was an error registering your hospital. Please try again.",
+        description: error.message || "There was an error registering your hospital. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -110,24 +142,30 @@ const HospitalRegistration = () => {
       <div className="flex-grow container mx-auto py-8 px-4">
         <div className="max-w-4xl mx-auto">
           <h1 className="text-3xl font-bold text-center mb-8">Hospital Registration</h1>
+          
+          {/* Progress Steps */}
           <div className="mb-10">
             <div className="flex justify-between items-center relative">
-              <div className={`w-1/3 text-center ${step >= 1 ? 'text-primary' : 'text-gray-400'}`}>
+              <div className={`w-1/4 text-center ${step >= 1 ? 'text-primary' : 'text-gray-400'}`}>
                 <div className={`rounded-full h-10 w-10 mx-auto flex items-center justify-center ${step >= 1 ? 'bg-primary text-white' : 'bg-gray-200'}`}>1</div>
                 <p className="mt-2">Basic Information</p>
               </div>
-              <div className={`w-1/3 text-center ${step >= 2 ? 'text-primary' : 'text-gray-400'}`}>
+              <div className={`w-1/4 text-center ${step >= 2 ? 'text-primary' : 'text-gray-400'}`}>
                 <div className={`rounded-full h-10 w-10 mx-auto flex items-center justify-center ${step >= 2 ? 'bg-primary text-white' : 'bg-gray-200'}`}>2</div>
-                <p className="mt-2">Hospital Details</p>
+                <p className="mt-2">Contact Details</p>
               </div>
-              <div className={`w-1/3 text-center ${step >= 3 ? 'text-primary' : 'text-gray-400'}`}>
+              <div className={`w-1/4 text-center ${step >= 3 ? 'text-primary' : 'text-gray-400'}`}>
                 <div className={`rounded-full h-10 w-10 mx-auto flex items-center justify-center ${step >= 3 ? 'bg-primary text-white' : 'bg-gray-200'}`}>3</div>
-                <p className="mt-2">Confirmation</p>
+                <p className="mt-2">Services & Specialties</p>
+              </div>
+              <div className={`w-1/4 text-center ${step >= 4 ? 'text-primary' : 'text-gray-400'}`}>
+                <div className={`rounded-full h-10 w-10 mx-auto flex items-center justify-center ${step >= 4 ? 'bg-primary text-white' : 'bg-gray-200'}`}>4</div>
+                <p className="mt-2">Review & Submit</p>
               </div>
               <div className="absolute top-5 left-0 w-full h-1 bg-gray-200 -z-10">
                 <div 
-                  className="h-full bg-primary" 
-                  style={{ width: `${(step - 1) * 50}%` }}
+                  className="h-full bg-primary transition-all duration-300" 
+                  style={{ width: `${((step - 1) / 3) * 100}%` }}
                 ></div>
               </div>
             </div>
@@ -137,13 +175,15 @@ const HospitalRegistration = () => {
             <CardHeader>
               <CardTitle>
                 {step === 1 && 'Basic Information'}
-                {step === 2 && 'Hospital Details'}
-                {step === 3 && 'Review and Submit'}
+                {step === 2 && 'Contact Details'}
+                {step === 3 && 'Services & Specialties'}
+                {step === 4 && 'Review and Submit'}
               </CardTitle>
               <CardDescription>
                 {step === 1 && 'Please provide the basic information about your hospital.'}
-                {step === 2 && 'Please provide detailed information about your hospital.'}
-                {step === 3 && 'Review your information and submit your registration.'}
+                {step === 2 && 'Please provide contact information for your hospital.'}
+                {step === 3 && 'Select the specialties and services your hospital offers.'}
+                {step === 4 && 'Review your information and submit your registration.'}
               </CardDescription>
             </CardHeader>
 
@@ -171,7 +211,7 @@ const HospitalRegistration = () => {
                         required
                       />
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-2 gap-4">
                       <div>
                         <Label htmlFor="city">City *</Label>
                         <Input
@@ -192,8 +232,10 @@ const HospitalRegistration = () => {
                           required
                         />
                       </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <Label htmlFor="zipCode">ZIP Code *</Label>
+                        <Label htmlFor="zipCode">Zip Code *</Label>
                         <Input
                           id="zipCode"
                           name="zipCode"
@@ -201,6 +243,19 @@ const HospitalRegistration = () => {
                           onChange={handleInputChange}
                           required
                         />
+                      </div>
+                      <div>
+                        <Label htmlFor="hospitalType">Hospital Type</Label>
+                        <Select value={formData.hospitalType} onValueChange={(value) => handleSelectChange('hospitalType', value)}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="private">Private</SelectItem>
+                            <SelectItem value="government">Government</SelectItem>
+                            <SelectItem value="nonprofit">Non-Profit</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                     </div>
                   </div>
@@ -218,56 +273,36 @@ const HospitalRegistration = () => {
                         required
                       />
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="contactEmail">Contact Email *</Label>
-                        <Input
-                          id="contactEmail"
-                          name="contactEmail"
-                          type="email"
-                          value={formData.contactEmail}
-                          onChange={handleInputChange}
-                          required
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="contactPhone">Contact Phone *</Label>
-                        <Input
-                          id="contactPhone"
-                          name="contactPhone"
-                          value={formData.contactPhone}
-                          onChange={handleInputChange}
-                          required
-                        />
-                      </div>
-                    </div>
                     <div>
-                      <Label htmlFor="specialties">Specialties (comma-separated)</Label>
+                      <Label htmlFor="contactEmail">Contact Email *</Label>
                       <Input
-                        id="specialties"
-                        name="specialties"
-                        value={formData.specialties.join(', ')}
-                        onChange={handleMultiSelectChange}
+                        id="contactEmail"
+                        name="contactEmail"
+                        type="email"
+                        value={formData.contactEmail}
+                        onChange={handleInputChange}
+                        required
                       />
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="contactPhone">Contact Phone *</Label>
+                      <Input
+                        id="contactPhone"
+                        name="contactPhone"
+                        value={formData.contactPhone}
+                        onChange={handleInputChange}
+                        required
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <Label htmlFor="hospitalType">Hospital Type</Label>
-                        <Select
-                          value={formData.hospitalType}
-                          onValueChange={(value) => handleSelectChange('hospitalType', value)}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select hospital type" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectGroup>
-                              <SelectItem value="private">Private</SelectItem>
-                              <SelectItem value="government">Government</SelectItem>
-                              <SelectItem value="nonprofit">Non-Profit</SelectItem>
-                            </SelectGroup>
-                          </SelectContent>
-                        </Select>
+                        <Label htmlFor="registrationNumber">Registration Number</Label>
+                        <Input
+                          id="registrationNumber"
+                          name="registrationNumber"
+                          value={formData.registrationNumber}
+                          onChange={handleInputChange}
+                        />
                       </div>
                       <div>
                         <Label htmlFor="bedCount">Bed Count</Label>
@@ -275,17 +310,18 @@ const HospitalRegistration = () => {
                           id="bedCount"
                           name="bedCount"
                           type="number"
-                          value={formData.bedCount.toString()}
+                          value={formData.bedCount}
                           onChange={handleInputChange}
                         />
                       </div>
                     </div>
                     <div>
-                      <Label htmlFor="registrationNumber">Registration Number</Label>
+                      <Label htmlFor="website">Website</Label>
                       <Input
-                        id="registrationNumber"
-                        name="registrationNumber"
-                        value={formData.registrationNumber}
+                        id="website"
+                        name="website"
+                        type="url"
+                        value={formData.website}
                         onChange={handleInputChange}
                       />
                     </div>
@@ -293,57 +329,87 @@ const HospitalRegistration = () => {
                 )}
 
                 {step === 3 && (
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-semibold">Review Your Information</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-sm font-medium text-gray-500">Hospital Name</p>
-                        <p>{formData.name}</p>
+                  <div className="space-y-6">
+                    <div>
+                      <Label className="text-base font-medium">Specialties</Label>
+                      <div className="grid grid-cols-2 gap-2 mt-2">
+                        {specialtyOptions.map((specialty) => (
+                          <div key={specialty} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={specialty}
+                              checked={formData.specialties.includes(specialty)}
+                              onCheckedChange={(checked) => 
+                                handleArrayChange('specialties', specialty, checked as boolean)
+                              }
+                            />
+                            <Label htmlFor={specialty} className="text-sm">{specialty}</Label>
+                          </div>
+                        ))}
                       </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-500">Address</p>
-                        <p>{formData.address}</p>
+                    </div>
+                    
+                    <div>
+                      <Label className="text-base font-medium">Services</Label>
+                      <div className="grid grid-cols-2 gap-2 mt-2">
+                        {serviceOptions.map((service) => (
+                          <div key={service} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={service}
+                              checked={formData.services.includes(service)}
+                              onCheckedChange={(checked) => 
+                                handleArrayChange('services', service, checked as boolean)
+                              }
+                            />
+                            <Label htmlFor={service} className="text-sm">{service}</Label>
+                          </div>
+                        ))}
                       </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-500">City</p>
-                        <p>{formData.city}</p>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="description">Hospital Description</Label>
+                      <Textarea
+                        id="description"
+                        name="description"
+                        value={formData.description}
+                        onChange={handleInputChange}
+                        rows={4}
+                        placeholder="Brief description of your hospital..."
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {step === 4 && (
+                  <div className="space-y-6">
+                    <div className="bg-gray-50 p-6 rounded-lg">
+                      <h3 className="text-lg font-semibold mb-4">Hospital Information Summary</h3>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <p><strong>Name:</strong> {formData.name}</p>
+                          <p><strong>Type:</strong> {formData.hospitalType}</p>
+                          <p><strong>Contact Person:</strong> {formData.contactPerson}</p>
+                          <p><strong>Email:</strong> {formData.contactEmail}</p>
+                          <p><strong>Phone:</strong> {formData.contactPhone}</p>
+                        </div>
+                        <div>
+                          <p><strong>Address:</strong> {formData.address}</p>
+                          <p><strong>City:</strong> {formData.city}, {formData.state}</p>
+                          <p><strong>Zip Code:</strong> {formData.zipCode}</p>
+                          <p><strong>Bed Count:</strong> {formData.bedCount || 'Not specified'}</p>
+                          <p><strong>Registration #:</strong> {formData.registrationNumber || 'Not provided'}</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-500">State</p>
-                        <p>{formData.state}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-500">ZIP Code</p>
-                        <p>{formData.zipCode}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-500">Contact Person</p>
-                        <p>{formData.contactPerson}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-500">Contact Email</p>
-                        <p>{formData.contactEmail}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-500">Contact Phone</p>
-                        <p>{formData.contactPhone}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-500">Specialties</p>
-                        <p>{formData.specialties.join(', ') || 'None specified'}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-500">Hospital Type</p>
-                        <p className="capitalize">{formData.hospitalType}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-500">Bed Count</p>
-                        <p>{formData.bedCount}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-500">Registration Number</p>
-                        <p>{formData.registrationNumber || 'Not provided'}</p>
-                      </div>
+                      {formData.specialties.length > 0 && (
+                        <div className="mt-4">
+                          <p><strong>Specialties:</strong> {formData.specialties.join(', ')}</p>
+                        </div>
+                      )}
+                      {formData.services.length > 0 && (
+                        <div className="mt-2">
+                          <p><strong>Services:</strong> {formData.services.join(', ')}</p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
@@ -356,18 +422,18 @@ const HospitalRegistration = () => {
                   Previous
                 </Button>
               )}
-              {step < 3 ? (
+              {step < 4 ? (
                 <Button type="button" onClick={nextStep} className="ml-auto">
                   Next
                 </Button>
               ) : (
                 <Button 
-                  type="submit" 
+                  type="button" 
                   onClick={handleSubmit} 
-                  disabled={loading} 
+                  disabled={loading}
                   className="ml-auto"
                 >
-                  {loading ? "Submitting..." : "Submit Registration"}
+                  {loading ? 'Submitting...' : 'Submit Registration'}
                 </Button>
               )}
             </CardFooter>
