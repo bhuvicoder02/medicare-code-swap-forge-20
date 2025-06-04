@@ -186,7 +186,7 @@ const LoanApplicationDialog = ({ open, onOpenChange, onSuccess, uhid, existingLo
         preferredTerm: existingLoan.loanDetails?.preferredTerm || 12,
         repaymentMethod: existingLoan.loanDetails?.repaymentMethod || 'monthly',
         hospitalName: existingLoan.loanDetails?.hospitalName || '',
-        purposeOfLoan: existingLoan.loanDetails?.purposeOfLoan || ''
+        purposeOfLoan: existingLoan.loanDetails?.purposeOfLoan || existingLoan.loanDetails?.purpose || ''
       },
       documents: {
         panCard: typeof existingLoan.documents === 'object' && !Array.isArray(existingLoan.documents) 
@@ -265,6 +265,10 @@ const LoanApplicationDialog = ({ open, onOpenChange, onSuccess, uhid, existingLo
       employmentInfo: {
         ...data.employmentInfo,
         startDate: data.employmentInfo.startDate ? new Date(data.employmentInfo.startDate) : undefined
+      },
+      loanDetails: {
+        ...data.loanDetails,
+        purpose: data.loanDetails.purposeOfLoan || data.medicalInfo.treatmentRequired || 'Medical Treatment'
       }
     };
   };
