@@ -15,13 +15,14 @@ import HospitalVisits from "@/components/patient/HospitalVisits";
 import LoanManagement from "@/components/patient/LoanManagement";
 import ProfileSettings from "@/components/patient/ProfileSettings";
 import AppointmentManagement from "@/components/patient/AppointmentManagement";
+import KycCompletion from "@/components/patient/KycCompletion";
 import SidebarWrapper from "@/components/SidebarWrapper";
 
 const PatientDashboard = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
-  const { authState, signOut } = useAuth();
+  const { authState, signOut, refreshUser } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   
@@ -61,6 +62,15 @@ const PatientDashboard = () => {
     signOut();
     navigate('/login');
   };
+
+  // Handle KYC completion
+  const handleKycComplete = async (uhid: string) => {
+    await refreshUser();
+    toast({
+      title: "KYC Completed",
+      description: `Your UHID ${uhid} has been generated successfully.`,
+    });
+  };
   
   // Map of tab values to their display names
   const tabTitles: Record<string, string> = {
@@ -70,6 +80,7 @@ const PatientDashboard = () => {
     "hospitals": "Hospital Visits",
     "loans": "Loan Management",
     "settings": "Profile Settings",
+    "kyc": "KYC Verification",
   };
 
   // Mock patient data for ProfileSettings
@@ -79,6 +90,35 @@ const PatientDashboard = () => {
     email: authState.user?.email || "patient@example.com",
     healthCardId: "HC-" + (authState.user?.id || "12345").substring(0, 6)
   };
+
+  // Show KYC completion if not completed
+  if (authState.user?.kycStatus !== 'completed') {
+    return (
+      <SidebarWrapper>
+        <PatientSidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
+        
+        <div className="flex-1 overflow-auto">
+          <PatientDashboardHeader
+            patientName={authState.user?.firstName ? `${authState.user.firstName} ${authState.user.lastName}` : "Patient"}
+            toggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+            onLogout={handleLogout}
+          />
+          
+          <main className="p-6">
+            <div className="mb-6">
+              <h1 className="text-2xl font-bold">Complete Your KYC Verification</h1>
+              <p className="text-gray-600 mt-2">
+                Please complete your KYC verification to access all features including health cards and loans.
+              </p>
+            </div>
+            
+            <KycCompletion onComplete={handleKycComplete} />
+          </main>
+        </div>
+        <Toaster />
+      </SidebarWrapper>
+    );
+  }
 
   return (
     <SidebarWrapper>
@@ -93,7 +133,12 @@ const PatientDashboard = () => {
         
         <main className="p-6">
           <div className="flex flex-col sm:flex-row justify-between mb-6 gap-4">
-            <h1 className="text-2xl font-bold">{tabTitles[activeTab] || "Dashboard"}</h1>
+            <div>
+              <h1 className="text-2xl font-bold">{tabTitles[activeTab] || "Dashboard"}</h1>
+              {authState.user?.uhid && (
+                <p className="text-sm text-gray-600 mt-1">UHID: {authState.user.uhid}</p>
+              )}
+            </div>
             
             <div className="flex gap-2">
               <Button 
