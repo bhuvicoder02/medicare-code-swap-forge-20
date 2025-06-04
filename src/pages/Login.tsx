@@ -105,7 +105,7 @@ const Login = () => {
     
     try {
       console.log('Attempting sign in with:', formData.email);
-      const { error, user } = await signIn(formData.email, formData.password);
+      const { error, data } = await signIn(formData.email, formData.password);
       
       if (error) {
         console.error('Login error:', error);
@@ -116,14 +116,14 @@ const Login = () => {
           variant: "destructive"
         });
       } else {
-        console.log('Login successful:', user);
+        console.log('Login successful:', data);
         toast({
           title: "Login Successful",
           description: `Welcome back!`,
         });
         
-        if (user?.role) {
-          const redirectPath = `/${user.role}-dashboard`;
+        if (data?.user?.role) {
+          const redirectPath = `/${data.user.role}-dashboard`;
           console.log('Redirecting to:', redirectPath);
           navigate(redirectPath, { replace: true });
         }
@@ -169,7 +169,7 @@ const Login = () => {
     
     try {
       console.log('Attempting demo login as:', type);
-      const { error, user } = await signIn(credentials.email, credentials.password);
+      const { error, data } = await signIn(credentials.email, credentials.password);
       
       if (error) {
         console.error('Demo login error:', error);
@@ -185,8 +185,8 @@ const Login = () => {
           description: `Logged in as ${type} demo user`,
         });
         
-        if (user?.role) {
-          const redirectPath = `/${user.role}-dashboard`;
+        if (data?.user?.role) {
+          const redirectPath = `/${data.user.role}-dashboard`;
           console.log('Redirecting to:', redirectPath);
           navigate(redirectPath, { replace: true });
         }

@@ -136,9 +136,7 @@ const LoanApplicationDialog = ({ open, onOpenChange, onSuccess, uhid, existingLo
     setFormData({
       personalInfo: {
         fullName: existingLoan.personalInfo?.fullName || '',
-        dateOfBirth: existingLoan.personalInfo?.dateOfBirth instanceof Date 
-          ? existingLoan.personalInfo.dateOfBirth.toISOString().split('T')[0] 
-          : existingLoan.personalInfo?.dateOfBirth || '',
+        dateOfBirth: existingLoan.personalInfo?.dateOfBirth || '',
         gender: existingLoan.personalInfo?.gender || '',
         phoneNumber: existingLoan.personalInfo?.phoneNumber || '',
         secondaryPhone: existingLoan.personalInfo?.secondaryPhone || '',
@@ -158,9 +156,7 @@ const LoanApplicationDialog = ({ open, onOpenChange, onSuccess, uhid, existingLo
         employerAddress: existingLoan.employmentInfo?.employerAddress || '',
         occupation: existingLoan.employmentInfo?.occupation || '',
         employmentStatus: existingLoan.employmentInfo?.employmentStatus || 'full-time',
-        startDate: existingLoan.employmentInfo?.startDate instanceof Date 
-          ? existingLoan.employmentInfo.startDate.toISOString().split('T')[0] 
-          : existingLoan.employmentInfo?.startDate || '',
+        startDate: existingLoan.employmentInfo?.startDate || '',
         monthlyGrossIncome: existingLoan.employmentInfo?.monthlyGrossIncome || 0,
         additionalIncome: existingLoan.employmentInfo?.additionalIncome || '',
         unemploymentBenefits: existingLoan.employmentInfo?.unemploymentBenefits || false,
@@ -186,24 +182,14 @@ const LoanApplicationDialog = ({ open, onOpenChange, onSuccess, uhid, existingLo
         preferredTerm: existingLoan.loanDetails?.preferredTerm || 12,
         repaymentMethod: existingLoan.loanDetails?.repaymentMethod || 'monthly',
         hospitalName: existingLoan.loanDetails?.hospitalName || '',
-        purposeOfLoan: existingLoan.loanDetails?.purposeOfLoan || existingLoan.loanDetails?.purpose || ''
+        purposeOfLoan: existingLoan.loanDetails?.purposeOfLoan || ''
       },
       documents: {
-        panCard: typeof existingLoan.documents === 'object' && !Array.isArray(existingLoan.documents) 
-          ? existingLoan.documents?.panCard || '' 
-          : '',
-        aadhaarCard: typeof existingLoan.documents === 'object' && !Array.isArray(existingLoan.documents) 
-          ? existingLoan.documents?.aadhaarCard || '' 
-          : '',
-        incomeProof: typeof existingLoan.documents === 'object' && !Array.isArray(existingLoan.documents) 
-          ? existingLoan.documents?.incomeProof || '' 
-          : '',
-        bankStatement: typeof existingLoan.documents === 'object' && !Array.isArray(existingLoan.documents) 
-          ? existingLoan.documents?.bankStatement || '' 
-          : '',
-        medicalDocuments: typeof existingLoan.documents === 'object' && !Array.isArray(existingLoan.documents) 
-          ? existingLoan.documents?.medicalDocuments || '' 
-          : ''
+        panCard: existingLoan.documents?.panCard || '',
+        aadhaarCard: existingLoan.documents?.aadhaarCard || '',
+        incomeProof: existingLoan.documents?.incomeProof || '',
+        bankStatement: existingLoan.documents?.bankStatement || '',
+        medicalDocuments: existingLoan.documents?.medicalDocuments || ''
       },
       transactionId: existingLoan.transactionId || '',
       agreementSigned: existingLoan.agreementSigned || false,
@@ -255,33 +241,10 @@ const LoanApplicationDialog = ({ open, onOpenChange, onSuccess, uhid, existingLo
     }));
   };
 
-  const convertFormDataToLoanData = (data: typeof formData) => {
-    return {
-      ...data,
-      personalInfo: {
-        ...data.personalInfo,
-        dateOfBirth: data.personalInfo.dateOfBirth ? new Date(data.personalInfo.dateOfBirth) : undefined
-      },
-      employmentInfo: {
-        ...data.employmentInfo,
-        startDate: data.employmentInfo.startDate ? new Date(data.employmentInfo.startDate) : undefined
-      },
-      loanDetails: {
-        ...data.loanDetails,
-        purpose: data.loanDetails.purposeOfLoan || data.medicalInfo.treatmentRequired || 'Medical Treatment'
-      }
-    };
-  };
-
   const saveDraft = async (step: number) => {
     try {
       console.log('Saving draft at step:', step);
-      const loanData = convertFormDataToLoanData(formData);
-      await saveLoanDraft({
-        uhid,
-        currentStep: step,
-        ...loanData
-      });
+      await saveLoanDraft(step, formData);
     } catch (error) {
       console.error('Failed to save draft:', error);
       toast({
@@ -350,11 +313,7 @@ const LoanApplicationDialog = ({ open, onOpenChange, onSuccess, uhid, existingLo
     setIsSubmitting(true);
     
     try {
-      const loanData = convertFormDataToLoanData(formData);
-      const response = await submitLoanApplication({
-        uhid,
-        ...loanData
-      });
+      const response = await submitLoanApplication(formData);
       setApplicationNumber(response.applicationNumber);
       
       toast({

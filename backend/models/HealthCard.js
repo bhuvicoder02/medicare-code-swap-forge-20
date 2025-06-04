@@ -21,11 +21,6 @@ const HealthCardSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
-  planType: {
-    type: String,
-    enum: ['basic', 'silver', 'gold', 'platinum'],
-    default: 'basic'
-  },
   status: {
     type: String,
     enum: ['active', 'expired', 'pending'],

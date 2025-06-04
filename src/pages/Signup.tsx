@@ -92,7 +92,7 @@ const Signup = () => {
     
     try {
       console.log('Attempting to register with:', formData);
-      const { user, error } = await signUp(
+      const { data, error } = await signUp(
         formData.email,
         formData.password,
         formData.firstName,
@@ -109,14 +109,14 @@ const Signup = () => {
           description: error.message || "Please try again",
           variant: "destructive"
         });
-      } else if (user) {
-        console.log('Registration successful:', user);
+      } else if (data?.user) {
+        console.log('Registration successful:', data);
         toast({
           title: "Registration Successful",
           description: "Your account has been created successfully",
         });
         
-        const redirectPath = `/${user.role}-dashboard`;
+        const redirectPath = `/${data.user.role}-dashboard`;
         console.log('Redirecting to:', redirectPath);
         navigate(redirectPath, { replace: true });
       }

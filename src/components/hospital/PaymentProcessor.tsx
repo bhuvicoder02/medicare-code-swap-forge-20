@@ -39,7 +39,7 @@ import {
 import { 
   processPaymentWithFallback, 
   PaymentMethod, 
-  PaymentResult 
+  PaymentResponse 
 } from "@/services/mockPaymentService";
 
 interface PatientInfo {
@@ -72,8 +72,8 @@ const PaymentProcessor = () => {
   const [loanTenure, setLoanTenure] = useState("3");
   const [processingPayment, setProcessingPayment] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("credit_card");
-  const [transactionDetails, setTransactionDetails] = useState<PaymentResult | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("healthcard");
+  const [transactionDetails, setTransactionDetails] = useState<PaymentResponse | null>(null);
 
   // Mock patient data for demo purposes
   const mockPatients = [
@@ -200,7 +200,7 @@ const PaymentProcessor = () => {
         "City General Hospital";
       
       // Determine payment method based on tab
-      const method: PaymentMethod = paymentTab === "healthcard" ? "healthcard" : "credit_card";
+      const method: PaymentMethod = paymentTab === "healthcard" ? "healthcard" : "loan";
       
       // Process payment using mock service with fallback mechanism
       const paymentResponse = await processPaymentWithFallback({
@@ -547,8 +547,8 @@ const PaymentProcessor = () => {
                   <div className="mt-4 p-4 bg-gray-50 rounded-lg text-left">
                     <h4 className="font-medium mb-2">Transaction Details</h4>
                     <p><span className="font-medium">Transaction ID:</span> {transactionDetails.transactionId}</p>
-                    <p><span className="font-medium">Date & Time:</span> {new Date().toLocaleString()}</p>
-                    <p><span className="font-medium">Status:</span> completed</p>
+                    <p><span className="font-medium">Date & Time:</span> {transactionDetails.timestamp ? new Date(transactionDetails.timestamp).toLocaleString() : new Date().toLocaleString()}</p>
+                    <p><span className="font-medium">Status:</span> {transactionDetails.status || 'completed'}</p>
                   </div>
                 )}
               </div>
