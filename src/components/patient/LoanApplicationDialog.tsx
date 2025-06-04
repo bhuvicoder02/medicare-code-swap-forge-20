@@ -255,13 +255,28 @@ const LoanApplicationDialog = ({ open, onOpenChange, onSuccess, uhid, existingLo
     }));
   };
 
+  const convertFormDataToLoanData = (data: typeof formData) => {
+    return {
+      ...data,
+      personalInfo: {
+        ...data.personalInfo,
+        dateOfBirth: data.personalInfo.dateOfBirth ? new Date(data.personalInfo.dateOfBirth) : undefined
+      },
+      employmentInfo: {
+        ...data.employmentInfo,
+        startDate: data.employmentInfo.startDate ? new Date(data.employmentInfo.startDate) : undefined
+      }
+    };
+  };
+
   const saveDraft = async (step: number) => {
     try {
       console.log('Saving draft at step:', step);
+      const loanData = convertFormDataToLoanData(formData);
       await saveLoanDraft({
         uhid,
         currentStep: step,
-        ...formData
+        ...loanData
       });
     } catch (error) {
       console.error('Failed to save draft:', error);
@@ -331,9 +346,10 @@ const LoanApplicationDialog = ({ open, onOpenChange, onSuccess, uhid, existingLo
     setIsSubmitting(true);
     
     try {
+      const loanData = convertFormDataToLoanData(formData);
       const response = await submitLoanApplication({
         uhid,
-        ...formData
+        ...loanData
       });
       setApplicationNumber(response.applicationNumber);
       
