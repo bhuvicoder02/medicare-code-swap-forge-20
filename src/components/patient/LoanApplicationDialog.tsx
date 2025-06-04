@@ -136,7 +136,9 @@ const LoanApplicationDialog = ({ open, onOpenChange, onSuccess, uhid, existingLo
     setFormData({
       personalInfo: {
         fullName: existingLoan.personalInfo?.fullName || '',
-        dateOfBirth: existingLoan.personalInfo?.dateOfBirth || '',
+        dateOfBirth: existingLoan.personalInfo?.dateOfBirth instanceof Date 
+          ? existingLoan.personalInfo.dateOfBirth.toISOString().split('T')[0] 
+          : existingLoan.personalInfo?.dateOfBirth || '',
         gender: existingLoan.personalInfo?.gender || '',
         phoneNumber: existingLoan.personalInfo?.phoneNumber || '',
         secondaryPhone: existingLoan.personalInfo?.secondaryPhone || '',
@@ -156,7 +158,9 @@ const LoanApplicationDialog = ({ open, onOpenChange, onSuccess, uhid, existingLo
         employerAddress: existingLoan.employmentInfo?.employerAddress || '',
         occupation: existingLoan.employmentInfo?.occupation || '',
         employmentStatus: existingLoan.employmentInfo?.employmentStatus || 'full-time',
-        startDate: existingLoan.employmentInfo?.startDate || '',
+        startDate: existingLoan.employmentInfo?.startDate instanceof Date 
+          ? existingLoan.employmentInfo.startDate.toISOString().split('T')[0] 
+          : existingLoan.employmentInfo?.startDate || '',
         monthlyGrossIncome: existingLoan.employmentInfo?.monthlyGrossIncome || 0,
         additionalIncome: existingLoan.employmentInfo?.additionalIncome || '',
         unemploymentBenefits: existingLoan.employmentInfo?.unemploymentBenefits || false,
@@ -185,11 +189,21 @@ const LoanApplicationDialog = ({ open, onOpenChange, onSuccess, uhid, existingLo
         purposeOfLoan: existingLoan.loanDetails?.purposeOfLoan || ''
       },
       documents: {
-        panCard: existingLoan.documents?.panCard || '',
-        aadhaarCard: existingLoan.documents?.aadhaarCard || '',
-        incomeProof: existingLoan.documents?.incomeProof || '',
-        bankStatement: existingLoan.documents?.bankStatement || '',
-        medicalDocuments: existingLoan.documents?.medicalDocuments || ''
+        panCard: typeof existingLoan.documents === 'object' && !Array.isArray(existingLoan.documents) 
+          ? existingLoan.documents?.panCard || '' 
+          : '',
+        aadhaarCard: typeof existingLoan.documents === 'object' && !Array.isArray(existingLoan.documents) 
+          ? existingLoan.documents?.aadhaarCard || '' 
+          : '',
+        incomeProof: typeof existingLoan.documents === 'object' && !Array.isArray(existingLoan.documents) 
+          ? existingLoan.documents?.incomeProof || '' 
+          : '',
+        bankStatement: typeof existingLoan.documents === 'object' && !Array.isArray(existingLoan.documents) 
+          ? existingLoan.documents?.bankStatement || '' 
+          : '',
+        medicalDocuments: typeof existingLoan.documents === 'object' && !Array.isArray(existingLoan.documents) 
+          ? existingLoan.documents?.medicalDocuments || '' 
+          : ''
       },
       transactionId: existingLoan.transactionId || '',
       agreementSigned: existingLoan.agreementSigned || false,
@@ -244,7 +258,11 @@ const LoanApplicationDialog = ({ open, onOpenChange, onSuccess, uhid, existingLo
   const saveDraft = async (step: number) => {
     try {
       console.log('Saving draft at step:', step);
-      await saveLoanDraft(step, formData);
+      await saveLoanDraft({
+        uhid,
+        currentStep: step,
+        ...formData
+      });
     } catch (error) {
       console.error('Failed to save draft:', error);
       toast({
@@ -313,7 +331,10 @@ const LoanApplicationDialog = ({ open, onOpenChange, onSuccess, uhid, existingLo
     setIsSubmitting(true);
     
     try {
-      const response = await submitLoanApplication(formData);
+      const response = await submitLoanApplication({
+        uhid,
+        ...formData
+      });
       setApplicationNumber(response.applicationNumber);
       
       toast({

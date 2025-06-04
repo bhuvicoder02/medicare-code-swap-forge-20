@@ -207,9 +207,10 @@ export const saveLoanDraft = async (loanData: Partial<LoanData>) => {
 };
 
 // Submit loan application
-export const submitLoanApplication = async (loanId: string) => {
-  return apiRequest(`/loans/${loanId}/submit`, {
-    method: 'POST'
+export const submitLoanApplication = async (loanData: Partial<LoanData>) => {
+  return apiRequest('/loans/submit', {
+    method: 'POST',
+    body: JSON.stringify(loanData)
   });
 };
 
@@ -221,7 +222,9 @@ export const getCreditScore = async (uhid: string) => {
     console.error('Failed to fetch credit score:', error);
     // Return mock data for demo
     return {
-      score: Math.floor(Math.random() * 300) + 650, // 650-950
+      creditScore: Math.floor(Math.random() * 300) + 650, // 650-950
+      maxEligibleAmount: Math.floor(Math.random() * 500000) + 100000, // 100k-600k
+      interestRate: Math.floor(Math.random() * 5) + 8, // 8-13%
       grade: 'Good',
       factors: ['Payment history', 'Credit utilization', 'Length of credit history']
     };
