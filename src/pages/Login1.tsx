@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Link, useNavigate, Navigate } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
@@ -77,11 +76,11 @@ const Login = () => {
     setError(null);
     
     try {
-      const { data, error } = await signIn(formData.email, formData.password);
+      const { user, error } = await signIn(formData.email, formData.password);
       
       if (error) {
         setError(error.message);
-      } else if (data?.user) {
+      } else if (user) {
         // Auth provider will handle the redirect
         toast({
           title: "Login Successful",
@@ -204,15 +203,10 @@ const Login = () => {
                   
                   <div className="mt-4 text-center">
                     <p className="text-sm text-gray-600">
-                      Don't have an account?{" "}
-                      <Link to="/register" className="text-brand-600 hover:underline">
-                        Sign up
-                      </Link>
+                      Don't have an account?{" "}<Link to="/register" className="text-brand-600 hover:underline">Sign up</Link>
                     </p>
                     <p className="text-xs text-gray-500 mt-2">
-                      <Link to="/forgot-password" className="hover:underline">
-                        Forgot your password?
-                      </Link>
+                      <Link to="/forgot-password" className="hover:underline">Forgot your password?</Link>
                     </p>
                   </div>
                 </CardContent>

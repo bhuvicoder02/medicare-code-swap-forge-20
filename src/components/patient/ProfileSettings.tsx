@@ -16,7 +16,7 @@ interface ProfileSettingsProps {
 }
 
 const ProfileSettings = ({ patientData }: ProfileSettingsProps) => {
-  const { updateProfile, authState } = useAuth();
+  const { authState, updateProfile } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
     fullName: patientData.patientName,

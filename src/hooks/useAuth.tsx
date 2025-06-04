@@ -1,6 +1,6 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { getCurrentUser, loginUser, registerUser, logoutUser } from '@/services/authService';
+import { getCurrentUser, loginUser, registerUser, logoutUser, updateUserProfile } from '@/services/authService';
 import { AuthState, AuthUser, UserRole } from '@/types/app.types';
 
 interface AuthContextType {
@@ -9,6 +9,7 @@ interface AuthContextType {
   signUp: (email: string, password: string, firstName: string, lastName: string, phone: string, role?: UserRole) => Promise<{ user: AuthUser | null; error: any }>;
   signOut: () => void;
   refreshUser: () => Promise<void>;
+  updateProfile: (userData: Partial<AuthUser>) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -94,8 +95,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const updateProfile = async (userData: Partial<AuthUser>) => {
+    try {
+      const updatedUser = await updateUserProfile(userData);
+      setAuthState(prev => ({
+        ...prev,
+        user: updatedUser,
+      }));
+    } catch (error) {
+      console.error('Failed to update profile:', error);
+      throw error;
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ authState, signIn, signUp, signOut, refreshUser }}>
+    <AuthContext.Provider value={{ authState, signIn, signUp, signOut, refreshUser, updateProfile }}>
       {children}
     </AuthContext.Provider>
   );
