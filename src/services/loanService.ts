@@ -21,6 +21,42 @@ export interface LoanData {
   applicationNumber: string;
   uhid: string;
   status: 'pending' | 'approved' | 'rejected' | 'disbursed' | 'draft' | 'submitted' | 'under_review' | 'completed';
+  currentStep?: number;
+  
+  // Personal Information
+  personalInfo?: {
+    fullName: string;
+    dateOfBirth: Date;
+    gender: string;
+    phoneNumber: string;
+    secondaryPhone?: string;
+    email: string;
+    homeAddress: string;
+    city: string;
+    state: string;
+    zipCode: string;
+    nationalId?: string;
+    maritalStatus?: string;
+    dependents?: string;
+    citizenshipStatus?: string;
+    languagePreference?: string;
+  };
+
+  // Employment and Income Information
+  employmentInfo?: {
+    employerName?: string;
+    employerAddress?: string;
+    occupation?: string;
+    employmentStatus?: string;
+    startDate?: Date;
+    monthlyGrossIncome?: number;
+    additionalIncome?: string;
+    unemploymentBenefits?: boolean;
+    totalHouseholdIncome?: number;
+    householdMembersInfo?: string;
+    incomeFluctuation?: string;
+  };
+
   loanDetails: {
     requestedAmount: number;
     approvedAmount?: number;
@@ -28,28 +64,58 @@ export interface LoanData {
     interestRate?: number;
     tenure?: number;
     preferredTerm?: number;
+    repaymentMethod?: string;
+    hospitalName?: string;
+    purposeOfLoan?: string;
   };
+  
   applicantInfo: {
     employmentType: string;
     monthlyIncome: number;
     existingLoans: boolean;
   };
+  
   medicalInfo?: {
     treatmentRequired: string;
     hospitalName?: string;
     doctorName?: string;
     estimatedCost?: number;
+    medicalProvider?: string;
+    treatmentStarted?: boolean;
+    insuranceCoverage?: number;
+    insuranceProvider?: string;
+    policyNumber?: string;
+    healthPlanCovered?: boolean;
+    appliedFinancialAssistance?: boolean;
+    preExistingConditions?: string;
+    outstandingMedicalDebt?: string;
   };
-  documents: string[];
+  
+  documents: {
+    panCard?: string;
+    aadhaarCard?: string;
+    incomeProof?: string;
+    bankStatement?: string;
+    medicalDocuments?: string;
+  } | string[];
+  
   submissionDate?: string;
   applicationDate: string;
   approvalDate?: string;
   disbursementDate?: string;
-  currentStep?: number;
+  completionDate?: string;
   transactionId?: string;
   monthlyPayment?: number;
   remainingBalance?: number;
   nextEmiDate?: string;
+  rejectionReason?: string;
+  
+  // Additional fields from backend model
+  creditScore?: number;
+  maxEligibleAmount?: number;
+  agreementSigned?: boolean;
+  nachMandateSigned?: boolean;
+  termsAccepted?: boolean;
 }
 
 export interface Loan {

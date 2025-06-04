@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Loader2, CreditCard, Plus, Ban, Clock, CheckCircle, AlertCircle, Wallet } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { processPaymentWithFallback, PaymentMethod } from "@/services/mockPaymentService";
+import { processPaymentWithFallback } from "@/services/mockPaymentService";
 import { 
   getUserHealthCards, 
   applyForHealthCard, 
@@ -21,6 +20,8 @@ import {
   HealthCardTopUp 
 } from "@/services/healthCardService";
 import { getUserLoans } from "@/services/loanService";
+
+type HealthCardPaymentMethod = 'credit_card' | 'debit_card' | 'upi' | 'net_banking';
 
 const HealthCardManagement = () => {
   const { toast } = useToast();
@@ -41,7 +42,7 @@ const HealthCardManagement = () => {
   // Form states
   const [selectedPlan, setSelectedPlan] = useState<'basic' | 'silver' | 'gold' | 'platinum'>('basic');
   const [topUpAmount, setTopUpAmount] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("credit_card");
+  const [paymentMethod, setPaymentMethod] = useState<HealthCardPaymentMethod>("credit_card");
   const [selectedLoan, setSelectedLoan] = useState("");
   const [selectedCard, setSelectedCard] = useState("");
 
