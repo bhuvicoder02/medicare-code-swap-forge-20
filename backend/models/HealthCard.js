@@ -12,10 +12,14 @@ const HealthCardSchema = new mongoose.Schema({
     ref: 'user',
     required: true
   },
+  uhid: {
+    type: String,
+    ref: 'user'
+  },
   availableCredit: {
     type: Number,
     required: true,
-    default: 25000
+    default: 0
   },
   usedCredit: {
     type: Number,
@@ -23,8 +27,32 @@ const HealthCardSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['active', 'expired', 'pending'],
+    enum: ['active', 'expired', 'pending', 'suspended'],
     default: 'pending'
+  },
+  cardType: {
+    type: String,
+    enum: ['basic', 'premium', 'ricare_discount'],
+    default: 'basic'
+  },
+  discountPercentage: {
+    type: Number,
+    default: 0
+  },
+  monthlyLimit: {
+    type: Number
+  },
+  requestedCreditLimit: {
+    type: Number
+  },
+  medicalHistory: {
+    type: String
+  },
+  monthlyIncome: {
+    type: Number
+  },
+  employmentStatus: {
+    type: String
   },
   issueDate: {
     type: Date,

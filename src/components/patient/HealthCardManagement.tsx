@@ -1,342 +1,379 @@
 
-import { useState } from "react";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState, useEffect } from "react";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Loader2, CreditCard, Plus, Ban, Clock, CheckCircle, AlertCircle } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { CreditCard, Plus, IndianRupee, Wallet, Award, CheckCircle } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { processPaymentWithFallback, PaymentMethod } from "@/services/mockPaymentService";
+import { useAuth } from "@/hooks/useAuth";
+import { fetchUserHealthCards, applyForHealthCard, topUpHealthCard, type HealthCard } from "@/services/healthCardService";
+import { getKYCStatus } from "@/services/kycService";
+import KycCompletion from "./KycCompletion";
 
 const HealthCardManagement = () => {
   const { toast } = useToast();
-  
-  // Mock health card data
-  const [healthCard, setHealthCard] = useState({
-    cardNumber: "HC-1234-5678-9012",
-    balance: 15000,
-    status: "Active",
-    expiryDate: "31/12/2025",
-    activationDate: "01/01/2023",
-    planType: "Gold",
-    monthlyLimit: 20000,
+  const { authState } = useAuth();
+  const [healthCards, setHealthCards] = useState<HealthCard[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [kycStatus, setKycStatus] = useState<string>('pending');
+  const [uhid, setUhid] = useState<string>('');
+  const [showApplication, setShowApplication] = useState(false);
+  const [showTopUp, setShowTopUp] = useState(false);
+  const [selectedCard, setSelectedCard] = useState<HealthCard | null>(null);
+  const [topUpAmount, setTopUpAmount] = useState('');
+
+  const [applicationForm, setApplicationForm] = useState({
+    cardType: 'basic' as 'basic' | 'premium' | 'ricare_discount',
+    requestedCreditLimit: 25000,
+    medicalHistory: '',
+    monthlyIncome: 0,
+    employmentStatus: 'employed'
   });
-  
-  // Dialog states
-  const [topUpDialogOpen, setTopUpDialogOpen] = useState(false);
-  const [processingPayment, setProcessingPayment] = useState(false);
-  const [topUpAmount, setTopUpAmount] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("credit_card");
-  
-  // Transaction history
-  const [transactions] = useState([
-    {
-      id: "TRX001",
-      date: "2023-05-02",
-      type: "Payment",
-      description: "Apollo Hospitals - Consultation",
-      amount: 1500,
-    },
-    {
-      id: "TRX002",
-      date: "2023-05-15",
-      type: "Top-up",
-      description: "Health Card Recharge",
-      amount: 5000,
-    },
-    {
-      id: "TRX003",
-      date: "2023-05-22",
-      type: "Payment",
-      description: "MedPlus Pharmacy",
-      amount: 1200,
-    },
-    {
-      id: "TRX004",
-      date: "2023-06-05",
-      type: "Payment",
-      description: "LifeCare Diagnostics - Blood Test",
-      amount: 2500,
-    },
-    {
-      id: "TRX005",
-      date: "2023-06-18",
-      type: "Top-up",
-      description: "Health Card Recharge",
-      amount: 10000,
-    }
-  ]);
-  
-  const handleTopUp = async () => {
-    if (!topUpAmount || parseFloat(topUpAmount) <= 0) {
-      toast({
-        variant: "destructive",
-        title: "Invalid Amount",
-        description: "Please enter a valid amount to top up your health card.",
-      });
-      return;
-    }
-    
-    setProcessingPayment(true);
-    
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
     try {
-      const amount = parseFloat(topUpAmount);
+      setLoading(true);
       
-      const paymentResult = await processPaymentWithFallback({
-        amount,
-        description: `Health Card Top-up (${healthCard.cardNumber})`,
-        paymentMethod,
-        metadata: {
-          cardNumber: healthCard.cardNumber,
-          planType: healthCard.planType
-        }
-      });
-      
-      if (paymentResult && paymentResult.success) {
-        // Update health card balance
-        setHealthCard({
-          ...healthCard,
-          balance: healthCard.balance + amount
-        });
-        
-        setTopUpDialogOpen(false);
-        setTopUpAmount("");
-        
-        toast({
-          title: "Top-up Successful",
-          description: `₹${amount.toLocaleString()} has been added to your health card.`,
-        });
+      // Check KYC status first
+      const kycData = await getKYCStatus();
+      setKycStatus(kycData.kycStatus);
+      if (kycData.uhid) {
+        setUhid(kycData.uhid);
       }
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Top-up Failed",
-        description: error.message || "Unable to process your payment. Please try again.",
-      });
+
+      // Fetch health cards if KYC is completed
+      if (kycData.kycStatus === 'completed') {
+        const cards = await fetchUserHealthCards();
+        setHealthCards(cards);
+      }
+    } catch (error) {
+      console.error('Failed to fetch data:', error);
     } finally {
-      setProcessingPayment(false);
-    }
-  };
-  
-  const handleRenewCard = () => {
-    toast({
-      title: "Card Renewal",
-      description: "Your card has been submitted for renewal. We will notify you once processed.",
-    });
-  };
-  
-  const handleFreezeCard = () => {
-    toast({
-      title: "Card Freeze Request",
-      description: "Your request to freeze the card has been submitted.",
-    });
-  };
-  
-  // Status color based on card status
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "Active":
-        return "text-green-600";
-      case "Inactive":
-        return "text-gray-500";
-      case "Expired":
-        return "text-red-600";
-      case "Frozen":
-        return "text-blue-600";
-      default:
-        return "text-gray-500";
-    }
-  };
-  
-  // Status icon based on card status
-  const StatusIcon = ({ status }: { status: string }) => {
-    switch (status) {
-      case "Active":
-        return <CheckCircle className="h-5 w-5 text-green-600" />;
-      case "Inactive":
-        return <Ban className="h-5 w-5 text-gray-500" />;
-      case "Expired":
-        return <AlertCircle className="h-5 w-5 text-red-600" />;
-      case "Frozen":
-        return <Clock className="h-5 w-5 text-blue-600" />;
-      default:
-        return null;
+      setLoading(false);
     }
   };
 
+  const handleApplyForCard = async () => {
+    try {
+      const newCard = await applyForHealthCard(applicationForm);
+      setHealthCards(prev => [...prev, newCard]);
+      setShowApplication(false);
+      toast({
+        title: "Health Card Application Submitted",
+        description: "Your application is pending admin approval.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Application Failed",
+        description: error.message || "Please try again",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleTopUp = async () => {
+    if (!selectedCard || !topUpAmount) return;
+
+    try {
+      await topUpHealthCard(selectedCard._id, parseFloat(topUpAmount));
+      
+      // Update local state
+      setHealthCards(prev => prev.map(card => 
+        card._id === selectedCard._id 
+          ? { ...card, availableCredit: card.availableCredit + parseFloat(topUpAmount) }
+          : card
+      ));
+
+      setShowTopUp(false);
+      setTopUpAmount('');
+      setSelectedCard(null);
+
+      toast({
+        title: "Top-up Successful",
+        description: `₹${topUpAmount} added to your health card`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Top-up Failed",
+        description: error.message || "Please try again",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    const colors = {
+      'pending': 'bg-yellow-100 text-yellow-800',
+      'approved': 'bg-blue-100 text-blue-800',
+      'active': 'bg-green-100 text-green-800',
+      'expired': 'bg-red-100 text-red-800',
+      'suspended': 'bg-gray-100 text-gray-800'
+    };
+    
+    return <Badge className={colors[status as keyof typeof colors]}>{status.toUpperCase()}</Badge>;
+  };
+
+  const getCardTypeInfo = (cardType: string) => {
+    const types = {
+      'basic': { name: 'Basic Card', color: 'bg-blue-500', limit: '₹25,000' },
+      'premium': { name: 'Premium Card', color: 'bg-purple-500', limit: '₹1,00,000' },
+      'ricare_discount': { name: 'RI Medicare Discount Card', color: 'bg-green-500', limit: '₹50,000' }
+    };
+    return types[cardType as keyof typeof types] || types.basic;
+  };
+
+  // Show KYC completion if not verified
+  if (kycStatus !== 'completed') {
+    return (
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Health Card Management</CardTitle>
+            <CardDescription>
+              Complete KYC verification to apply for health cards
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {kycStatus === 'pending' ? (
+              <KycCompletion onComplete={(newUhid) => {
+                setUhid(newUhid);
+                setKycStatus('completed');
+                fetchData();
+              }} />
+            ) : (
+              <div className="text-center p-8">
+                <p className="text-gray-600">KYC verification is {kycStatus}. Please contact support.</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
-      {/* Health Card Details */}
-      <Card className="overflow-hidden">
-        <div className="bg-gradient-to-r from-brand-600 to-brand-800 p-6 text-white">
-          <div className="flex justify-between">
-            <div>
-              <h3 className="text-xl font-semibold">Rimedicare Health Card</h3>
-              <p className="text-brand-100">{healthCard.planType} Plan</p>
-            </div>
-            <CreditCard className="h-8 w-8" />
-          </div>
-          <p className="mt-6 font-mono text-lg">{healthCard.cardNumber}</p>
-          <div className="mt-4 flex justify-between">
-            <div>
-              <p className="text-xs text-brand-100">VALID THRU</p>
-              <p>{healthCard.expiryDate}</p>
-            </div>
-            <div>
-              <p className="text-xs text-brand-100">STATUS</p>
-              <div className="flex items-center gap-1">
-                <StatusIcon status={healthCard.status} />
-                <span className={getStatusColor(healthCard.status)}>{healthCard.status}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        <CardContent className="pt-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="p-4 bg-brand-50 rounded-lg">
-              <p className="text-sm text-muted-foreground">Available Balance</p>
-              <p className="text-2xl font-bold">₹{healthCard.balance.toLocaleString()}</p>
-            </div>
-            <div className="p-4 bg-brand-50 rounded-lg">
-              <p className="text-sm text-muted-foreground">Monthly Limit</p>
-              <p className="text-2xl font-bold">₹{healthCard.monthlyLimit.toLocaleString()}</p>
-            </div>
-            <div className="p-4 bg-brand-50 rounded-lg">
-              <p className="text-sm text-muted-foreground">Activation Date</p>
-              <p className="text-2xl font-bold">{healthCard.activationDate}</p>
-            </div>
-          </div>
-        </CardContent>
-        
-        <CardFooter className="flex flex-wrap gap-2">
-          <Button onClick={() => setTopUpDialogOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            Top-up Balance
-          </Button>
-          <Button variant="outline" onClick={handleRenewCard}>Renew Card</Button>
-          <Button variant="outline" onClick={handleFreezeCard}>Freeze Card</Button>
-        </CardFooter>
-      </Card>
-      
-      {/* Transaction History */}
       <Card>
-        <CardHeader>
-          <CardTitle>Transaction History</CardTitle>
-          <CardDescription>Recent transactions with your health card</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="rounded-md border">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b bg-muted/50">
-                  <th className="py-3 px-4 text-left text-sm font-medium text-muted-foreground">Transaction ID</th>
-                  <th className="py-3 px-4 text-left text-sm font-medium text-muted-foreground">Date</th>
-                  <th className="py-3 px-4 text-left text-sm font-medium text-muted-foreground">Type</th>
-                  <th className="py-3 px-4 text-left text-sm font-medium text-muted-foreground">Description</th>
-                  <th className="py-3 px-4 text-right text-sm font-medium text-muted-foreground">Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                {transactions.map((tx) => (
-                  <tr key={tx.id} className="border-b">
-                    <td className="py-3 px-4 text-sm font-medium">{tx.id}</td>
-                    <td className="py-3 px-4 text-sm">{tx.date}</td>
-                    <td className="py-3 px-4 text-sm">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        tx.type === "Top-up" ? "bg-green-100 text-green-800" : "bg-blue-100 text-blue-800"
-                      }`}>
-                        {tx.type}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 text-sm">{tx.description}</td>
-                    <td className={`py-3 px-4 text-sm font-medium text-right ${
-                      tx.type === "Top-up" ? "text-green-600" : ""
-                    }`}>
-                      {tx.type === "Top-up" ? "+" : "-"}₹{tx.amount.toLocaleString()}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <CreditCard className="h-5 w-5" />
+              Health Card Management
+            </CardTitle>
+            <CardDescription>
+              Manage your health cards and wallet balance (UHID: {uhid})
+            </CardDescription>
           </div>
-        </CardContent>
-        <CardFooter>
-          <Button variant="outline" className="ml-auto">View All Transactions</Button>
-        </CardFooter>
+          <Dialog open={showApplication} onOpenChange={setShowApplication}>
+            <DialogTrigger asChild>
+              <Button className="flex items-center gap-2">
+                <Plus className="h-4 w-4" />
+                Apply for Card
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Apply for Health Card</DialogTitle>
+                <DialogDescription>
+                  Choose the type of health card you want to apply for
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <Label>Card Type</Label>
+                  <Select 
+                    value={applicationForm.cardType} 
+                    onValueChange={(value: any) => setApplicationForm(prev => ({ ...prev, cardType: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="basic">Basic Card (₹25,000 limit)</SelectItem>
+                      <SelectItem value="premium">Premium Card (₹1,00,000 limit)</SelectItem>
+                      <SelectItem value="ricare_discount">RI Medicare Discount Card (15% discount)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label>Requested Credit Limit</Label>
+                  <Input
+                    type="number"
+                    value={applicationForm.requestedCreditLimit}
+                    onChange={(e) => setApplicationForm(prev => ({ 
+                      ...prev, 
+                      requestedCreditLimit: parseInt(e.target.value) 
+                    }))}
+                  />
+                </div>
+
+                <div>
+                  <Label>Monthly Income</Label>
+                  <Input
+                    type="number"
+                    value={applicationForm.monthlyIncome}
+                    onChange={(e) => setApplicationForm(prev => ({ 
+                      ...prev, 
+                      monthlyIncome: parseInt(e.target.value) 
+                    }))}
+                  />
+                </div>
+
+                <div>
+                  <Label>Employment Status</Label>
+                  <Select 
+                    value={applicationForm.employmentStatus} 
+                    onValueChange={(value) => setApplicationForm(prev => ({ ...prev, employmentStatus: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="employed">Employed</SelectItem>
+                      <SelectItem value="self_employed">Self Employed</SelectItem>
+                      <SelectItem value="business">Business Owner</SelectItem>
+                      <SelectItem value="retired">Retired</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <Button onClick={handleApplyForCard} className="w-full">
+                  Submit Application
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </CardHeader>
       </Card>
-      
-      {/* Top-up Dialog */}
-      <Dialog open={topUpDialogOpen} onOpenChange={setTopUpDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+
+      {/* Health Cards Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {healthCards.map((card) => {
+          const cardInfo = getCardTypeInfo(card.cardType || 'basic');
+          return (
+            <Card key={card._id} className="relative overflow-hidden">
+              <div className={`h-2 ${cardInfo.color}`}></div>
+              <CardHeader>
+                <div className="flex justify-between items-start">
+                  <div>
+                    <CardTitle className="text-lg">{cardInfo.name}</CardTitle>
+                    <CardDescription>
+                      Card: {card.cardNumber}
+                    </CardDescription>
+                  </div>
+                  <div className="flex flex-col items-end gap-2">
+                    {getStatusBadge(card.status)}
+                    {card.cardType === 'ricare_discount' && (
+                      <Badge className="bg-green-100 text-green-800">
+                        {card.discountPercentage}% Discount
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Available Balance</span>
+                    <span className="font-semibold">₹{card.availableCredit.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Used Credit</span>
+                    <span className="text-red-600">₹{card.usedCredit.toLocaleString()}</span>
+                  </div>
+                  {card.monthlyLimit && (
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">Monthly Limit</span>
+                      <span className="text-blue-600">₹{card.monthlyLimit.toLocaleString()}</span>
+                    </div>
+                  )}
+                </div>
+
+                {card.status === 'active' && (
+                  <Button 
+                    variant="outline" 
+                    className="w-full"
+                    onClick={() => {
+                      setSelectedCard(card);
+                      setShowTopUp(true);
+                    }}
+                  >
+                    <Wallet className="h-4 w-4 mr-2" />
+                    Top Up
+                  </Button>
+                )}
+
+                <div className="text-xs text-gray-500">
+                  {card.issueDate && (
+                    <div>Issued: {new Date(card.issueDate).toLocaleDateString()}</div>
+                  )}
+                  {card.expiryDate && (
+                    <div>Expires: {new Date(card.expiryDate).toLocaleDateString()}</div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+
+      {healthCards.length === 0 && !loading && (
+        <Card>
+          <CardContent className="text-center p-8">
+            <CreditCard className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+            <p className="text-gray-600 mb-4">No health cards found</p>
+            <p className="text-sm text-gray-500">Apply for your first health card to get started</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Top Up Dialog */}
+      <Dialog open={showTopUp} onOpenChange={setShowTopUp}>
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle>Top-up Health Card</DialogTitle>
+            <DialogTitle>Top Up Health Card</DialogTitle>
             <DialogDescription>
-              Add funds to your health card to use for medical expenses
+              Add funds to your health card wallet
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="top-up-amount">Amount (₹)</Label>
+          <div className="space-y-4">
+            <div>
+              <Label>Amount to Top Up (₹)</Label>
               <Input
-                id="top-up-amount"
-                placeholder="Enter amount"
                 type="number"
                 value={topUpAmount}
                 onChange={(e) => setTopUpAmount(e.target.value)}
+                placeholder="Enter amount"
+                min="100"
+                max="50000"
               />
-              {topUpAmount && parseFloat(topUpAmount) < 500 && (
-                <p className="text-sm text-red-500">Minimum top-up amount is ₹500</p>
-              )}
             </div>
-            
-            <div className="grid gap-2">
-              <Label htmlFor="payment-method">Payment Method</Label>
-              <RadioGroup value={paymentMethod} onValueChange={setPaymentMethod as any}>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="credit_card" id="credit_card" />
-                  <Label htmlFor="credit_card">Credit/Debit Card</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="upi" id="upi" />
-                  <Label htmlFor="upi">UPI</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="net_banking" id="net_banking" />
-                  <Label htmlFor="net_banking">Net Banking</Label>
-                </div>
-              </RadioGroup>
+            <div className="flex gap-2">
+              {[1000, 2500, 5000, 10000].map(amount => (
+                <Button 
+                  key={amount}
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setTopUpAmount(amount.toString())}
+                >
+                  ₹{amount}
+                </Button>
+              ))}
             </div>
-            
-            <Alert>
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Information</AlertTitle>
-              <AlertDescription>
-                Funds will be immediately available in your health card after successful payment.
-              </AlertDescription>
-            </Alert>
+            <Button onClick={handleTopUp} className="w-full">
+              <IndianRupee className="h-4 w-4 mr-2" />
+              Top Up ₹{topUpAmount}
+            </Button>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setTopUpDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button 
-              onClick={handleTopUp} 
-              disabled={processingPayment || !topUpAmount || parseFloat(topUpAmount) < 500}
-            >
-              {processingPayment ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Processing...
-                </>
-              ) : (
-                'Pay Now'
-              )}
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
