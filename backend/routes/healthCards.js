@@ -20,6 +20,26 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
+// @route   GET api/health-cards/admin/all
+// @desc    Get all health cards for admin
+// @access  Private (Admin only)
+router.get('/admin/all', auth, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(401).json({ msg: 'Not authorized' });
+    }
+
+    const healthCards = await HealthCard.find({})
+      .populate('user', 'firstName lastName email')
+      .sort({ issueDate: -1 });
+    
+    res.json(healthCards);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
 // @route   POST api/health-cards/apply
 // @desc    Apply for a health card
 // @access  Private
@@ -84,6 +104,69 @@ router.post('/apply', [
 
     const healthCard = await newHealthCard.save();
     res.json(healthCard);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
+// @route   PUT api/health-cards/:id/approve
+// @desc    Approve health card application (admin only)
+// @access  Private
+router.put('/:id/approve', auth, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(401).json({ msg: 'Not authorized' });
+    }
+
+    const healthCard = await HealthCard.findById(req.params.id);
+    if (!healthCard) {
+      return res.status(404).json({ msg: 'Health card not found' });
+    }
+
+    const { approvedCreditLimit } = req.body;
+
+    healthCard.status = 'active';
+    healthCard.availableCredit = approvedCreditLimit || healthCard.requestedCreditLimit || 25000;
+    healthCard.issueDate = new Date();
+
+    await healthCard.save();
+
+    res.json({
+      message: 'Health card approved successfully',
+      healthCard
+    });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
+// @route   PUT api/health-cards/:id/reject
+// @desc    Reject health card application (admin only)
+// @access  Private
+router.put('/:id/reject', auth, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(401).json({ msg: 'Not authorized' });
+    }
+
+    const healthCard = await HealthCard.findById(req.params.id);
+    if (!healthCard) {
+      return res.status(404).json({ msg: 'Health card not found' });
+    }
+
+    const { rejectionReason } = req.body;
+
+    healthCard.status = 'rejected';
+    healthCard.rejectionReason = rejectionReason;
+
+    await healthCard.save();
+
+    res.json({
+      message: 'Health card rejected successfully',
+      healthCard
+    });
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server Error');
@@ -190,38 +273,6 @@ router.post(
     }
   }
 );
-
-// @route   PUT api/health-cards/:id/approve
-// @desc    Approve health card application (admin only)
-// @access  Private
-router.put('/:id/approve', auth, async (req, res) => {
-  try {
-    if (req.user.role !== 'admin') {
-      return res.status(401).json({ msg: 'Not authorized' });
-    }
-
-    const healthCard = await HealthCard.findById(req.params.id);
-    if (!healthCard) {
-      return res.status(404).json({ msg: 'Health card not found' });
-    }
-
-    const { approvedCreditLimit } = req.body;
-
-    healthCard.status = 'active';
-    healthCard.availableCredit = approvedCreditLimit || healthCard.requestedCreditLimit || 25000;
-    healthCard.issueDate = new Date();
-
-    await healthCard.save();
-
-    res.json({
-      message: 'Health card approved successfully',
-      healthCard
-    });
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).send('Server Error');
-  }
-});
 
 // @route   GET api/health-cards/:id
 // @desc    Get health card by ID

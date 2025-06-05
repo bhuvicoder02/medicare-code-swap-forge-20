@@ -27,7 +27,7 @@ const HealthCardSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['active', 'expired', 'pending', 'suspended'],
+    enum: ['active', 'expired', 'pending', 'suspended', 'rejected'],
     default: 'pending'
   },
   cardType: {
@@ -52,6 +52,9 @@ const HealthCardSchema = new mongoose.Schema({
     type: Number
   },
   employmentStatus: {
+    type: String
+  },
+  rejectionReason: {
     type: String
   },
   issueDate: {
