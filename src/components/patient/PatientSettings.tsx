@@ -13,7 +13,7 @@ import { updateUserProfile, changePassword } from "@/services/authService";
 
 const PatientSettings = () => {
   const { toast } = useToast();
-  const { authState, updateUser } = useAuth();
+  const { authState, updateProfile } = useAuth();
   const [activeTab, setActiveTab] = useState("profile");
 
   // Profile settings state
@@ -62,7 +62,7 @@ const PatientSettings = () => {
   const handleSaveProfile = async () => {
     try {
       const updatedUser = await updateUserProfile(profileData);
-      updateUser(updatedUser);
+      await updateProfile(updatedUser);
       toast({
         title: "Profile Updated",
         description: "Your profile has been successfully updated.",

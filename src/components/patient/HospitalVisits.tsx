@@ -6,23 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Search, MapPin, Calendar, CreditCard, Receipt } from "lucide-react";
-import { fetchUserTransactions } from "@/services/transactionService";
+import { fetchUserTransactions, Transaction } from "@/services/transactionService";
 import { useToast } from "@/hooks/use-toast";
-
-interface VisitRecord {
-  _id: string;
-  amount: number;
-  description: string;
-  hospital: string;
-  date: string;
-  status: string;
-  type: string;
-}
 
 const HospitalVisits = () => {
   const { toast } = useToast();
-  const [visits, setVisits] = useState<VisitRecord[]>([]);
-  const [filteredVisits, setFilteredVisits] = useState<VisitRecord[]>([]);
+  const [visits, setVisits] = useState<Transaction[]>([]);
+  const [filteredVisits, setFilteredVisits] = useState<Transaction[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
 
