@@ -1,4 +1,3 @@
-
 import { apiRequest } from "./api";
 import { AuthUser, UserRole } from "@/types/app.types";
 
@@ -114,4 +113,40 @@ export const logoutUser = () => {
 export const checkAuthToken = (): boolean => {
   const token = localStorage.getItem('token');
   return !!token;
+};
+
+export const updateUserProfile = async (profileData: {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+}): Promise<any> => {
+  try {
+    console.log('Updating user profile:', profileData);
+    const response = await apiRequest('/users/me', {
+      method: 'PUT',
+      body: JSON.stringify(profileData)
+    });
+    return response;
+  } catch (error) {
+    console.error('Failed to update profile:', error);
+    throw error;
+  }
+};
+
+export const changePassword = async (currentPassword: string, newPassword: string): Promise<any> => {
+  try {
+    console.log('Changing user password');
+    const response = await apiRequest('/users/change-password', {
+      method: 'PUT',
+      body: JSON.stringify({
+        currentPassword,
+        newPassword
+      })
+    });
+    return response;
+  } catch (error) {
+    console.error('Failed to change password:', error);
+    throw error;
+  }
 };

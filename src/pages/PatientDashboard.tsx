@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -15,6 +14,8 @@ import HospitalVisits from "@/components/patient/HospitalVisits";
 import LoanManagement from "@/components/patient/LoanManagement";
 import ProfileSettings from "@/components/patient/ProfileSettings";
 import AppointmentManagement from "@/components/patient/AppointmentManagement";
+import PatientSettings from "@/components/patient/PatientSettings";
+import PatientNotifications from "@/components/patient/PatientNotifications";
 import SidebarWrapper from "@/components/SidebarWrapper";
 
 const PatientDashboard = () => {
@@ -69,6 +70,7 @@ const PatientDashboard = () => {
     "appointments": "My Appointments",
     "hospitals": "Hospital Visits",
     "loans": "Loan Management",
+    "notifications": "Notifications",
     "settings": "Profile Settings",
   };
 
@@ -106,7 +108,7 @@ const PatientDashboard = () => {
                 {isRefreshing ? "Refreshing..." : "Refresh Data"}
               </Button>
               
-              {activeTab !== "settings" && (
+              {activeTab !== "settings" && activeTab !== "notifications" && (
                 <Button 
                   variant="outline" 
                   size="sm"
@@ -123,9 +125,9 @@ const PatientDashboard = () => {
             <TabsList className="bg-white border overflow-x-auto">
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="healthcard">Health Card</TabsTrigger>
-              <TabsTrigger value="appointments">Appointments</TabsTrigger>
               <TabsTrigger value="hospitals">Hospital Visits</TabsTrigger>
               <TabsTrigger value="loans">Loans</TabsTrigger>
+              <TabsTrigger value="notifications">Notifications</TabsTrigger>
               <TabsTrigger value="settings">Settings</TabsTrigger>
             </TabsList>
             
@@ -137,10 +139,6 @@ const PatientDashboard = () => {
               <HealthCardManagement />
             </TabsContent>
             
-            <TabsContent value="appointments" className="mt-6">
-              <AppointmentManagement />
-            </TabsContent>
-            
             <TabsContent value="hospitals" className="mt-6">
               <HospitalVisits />
             </TabsContent>
@@ -149,8 +147,12 @@ const PatientDashboard = () => {
               <LoanManagement />
             </TabsContent>
             
+            <TabsContent value="notifications" className="mt-6">
+              <PatientNotifications />
+            </TabsContent>
+            
             <TabsContent value="settings" className="mt-6">
-              <ProfileSettings patientData={patientData} />
+              <PatientSettings />
             </TabsContent>
           </Tabs>
         </main>
