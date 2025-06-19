@@ -21,6 +21,25 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
+// @route   GET api/transactions/all
+// @desc    Get all transactions (admin only)
+// @access  Private
+router.get('/all', auth, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(401).json({ msg: 'Not authorized to view all transactions' });
+    }
+
+    const transactions = await Transaction.find()
+      .populate('user', 'firstName lastName email uhid')
+      .sort({ date: -1 });
+    res.json(transactions);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
 // @route   GET api/transactions/:id
 // @desc    Get transaction by ID
 // @access  Private

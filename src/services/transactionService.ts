@@ -1,4 +1,3 @@
-
 import { apiRequest } from './api';
 
 export interface Transaction {
@@ -19,6 +18,17 @@ export const fetchUserTransactions = async (): Promise<Transaction[]> => {
     return response || [];
   } catch (error) {
     console.error('Failed to fetch transactions:', error);
+    throw error;
+  }
+};
+
+export const fetchAllTransactions = async (): Promise<Transaction[]> => {
+  try {
+    console.log('Fetching all transactions for admin');
+    const response = await apiRequest('/transactions/all');
+    return response || [];
+  } catch (error) {
+    console.error('Failed to fetch all transactions:', error);
     throw error;
   }
 };
